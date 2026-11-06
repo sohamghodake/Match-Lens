@@ -89,7 +89,7 @@ export function UploadDropzone() {
               className="size-6 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-600"
             />
             <p className="font-medium">Reading {state.fileName}…</p>
-            <p className="text-sm text-zinc-500">This usually takes 5–15 seconds.</p>
+            <p className="text-sm text-zinc-500">This can take a minute or two.</p>
           </>
         ) : (
           <>

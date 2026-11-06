@@ -30,7 +30,7 @@ services:
     environment:
       # These override .env, whose values are meant for tools run on the host.
       DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@db:5432/matchlens
-      TEST_DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@db:5432/matchlens
+      TEST_DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@db:5432/matchlens_test
       CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-3100}
       # Without a .env, point at the host's Ollama (localhost would be this container).
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}

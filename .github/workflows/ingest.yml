@@ -1,0 +1,68 @@
+name: Ingest jobs
+
+# Daily: fetch Remotive, Remote OK and Greenhouse, store new and changed remote tech
+# jobs in the production database. Free: public repos get standard runners at no cost,
+# and the pipeline makes no paid API calls (skills come from the dictionary scan).
+#
+# Setup (Phase 7): add a repository secret DATABASE_URL with the Neon *direct*
+# connection string. Until then each run exits early with a notice.
+# Note: GitHub pauses scheduled workflows after 60 days without repository activity.
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # 06:17 UTC daily (off the hour, when Actions is busiest)
+  workflow_dispatch:
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EMBED_CACHE_DIR: ${{ github.workspace }}/.fastembed
+    steps:
+      - name: Check configuration
+        id: config
+        working-directory: .
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::Add a DATABASE_URL repository secret to enable daily ingestion."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.config.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+
+      - if: steps.config.outputs.enabled == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - if: steps.config.outputs.enabled == 'true'
+        name: Cache the embedding model
+        uses: actions/cache@v6
+        with:
+          path: .fastembed
+          key: fastembed-bge-small-en-v1.5
+
+      - if: steps.config.outputs.enabled == 'true'
+        run: pip install -e .
+
+      - if: steps.config.outputs.enabled == 'true'
+        name: Apply migrations
+        run: alembic upgrade head
+
+      - if: steps.config.outputs.enabled == 'true'
+        name: Ingest
+        run: python -m ingestion.run

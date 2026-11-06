@@ -195,8 +195,38 @@ def _system_prompt(system: str | None, schema: type[BaseModel]) -> str:
         f"{system or DEFAULT_SYSTEM}\n\n"
         "Respond with a single JSON object and nothing else: no prose, no markdown. "
         "It must validate against this JSON Schema:\n"
-        f"{json.dumps(schema.model_json_schema(), separators=(',', ':'))}"
+        f"{json.dumps(prompt_schema(schema), separators=(',', ':'))}"
     )
+
+
+def prompt_schema(schema: type[BaseModel]) -> dict[str, Any]:
+    """The model's JSON Schema with `$ref`s inlined and metadata titles dropped.
+
+    Small models copy `$defs` / `$ref` plumbing into their answers instead of following
+    it (qwen2.5:3b returned `{"$defs/LLMEducation": ...}`); a flat schema avoids that.
+    """
+    full = schema.model_json_schema()
+    defs = full.get("$defs", {})
+
+    def resolve(node: Any, depth: int = 0) -> Any:
+        if depth > 20:  # recursive models would loop forever
+            return node
+        if isinstance(node, dict):
+            if "$ref" in node:
+                target = defs[node["$ref"].rsplit("/", 1)[-1]]
+                merged = {**target, **{k: v for k, v in node.items() if k != "$ref"}}
+                return resolve(merged, depth + 1)
+            return {
+                key: resolve(value, depth + 1)
+                for key, value in node.items()
+                # "title" metadata is a string; a field *named* title is a dict.
+                if key != "$defs" and not (key == "title" and isinstance(value, str))
+            }
+        if isinstance(node, list):
+            return [resolve(item, depth + 1) for item in node]
+        return node
+
+    return resolve(full)
 
 
 def _error_text(exc: openai.APIStatusError) -> str:

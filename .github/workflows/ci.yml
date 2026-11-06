@@ -27,7 +27,7 @@ jobs:
           --health-interval 2s --health-timeout 3s --health-retries 30
     env:
       DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@localhost:5432/matchlens
-      TEST_DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@localhost:5432/matchlens
+      TEST_DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@localhost:5432/matchlens_test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

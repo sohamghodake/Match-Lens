@@ -78,18 +78,28 @@ async def parse_resume(text: str, llm: LLMClient, *, today: date | None = None) 
     except LLMError as exc:
         log.warning("resume parse fell back to rules: %s", exc)
         return parse_with_rules(text, today=today)
-    profile, warnings = build_profile(raw, today=today)
+    profile, warnings = build_profile(raw, today=today, text=text)
     return ParsedResume(profile=profile, method="llm", warnings=warnings)
 
 
-def build_profile(raw: LLMResume, *, today: date) -> tuple[ResumeProfile, list[str]]:
+def build_profile(
+    raw: LLMResume, *, today: date, text: str = ""
+) -> tuple[ResumeProfile, list[str]]:
     warnings: list[str] = []
     roles: list[Role] = []
+    lines = text.splitlines()
+    used_lines: set[int] = set()
     for item in raw.roles:
         title, company = item.title.strip(), item.company.strip()
         if not title and not company:
             continue
         start, end = normalize_date(item.start), normalize_date(item.end)
+        if (start is None or end is None) and lines:
+            # Small models often drop dates they were shown; take them from the text.
+            found = _dates_near_role(title, company, lines, used_lines)
+            if found:
+                start = start or normalize_date(found[0])
+                end = end or normalize_date(found[1])
         label = f"{title or 'Role'} at {company or 'unknown company'}"
         if start is None:
             unreadable = f' ("{item.start}")' if item.start else ""
@@ -121,7 +131,9 @@ def build_profile(raw: LLMResume, *, today: date) -> tuple[ResumeProfile, list[s
     ]
     profile = ResumeProfile(
         headline=(raw.headline or "").strip() or (roles[0].title if roles else None),
-        seniority=raw.seniority,
+        # An explicit level in the latest title ("Senior ...", "Staff ...") beats the
+        # model's judgment; small models in particular over-rate seniority.
+        seniority=(seniority_from_title(roles[0].title) if roles else None) or raw.seniority,
         total_years_experience=years,
         skills=normalize_skills(raw.skills),
         roles=roles,
@@ -180,6 +192,29 @@ def _recency(role: Role, today: date) -> tuple[int, int]:
     end = index(role.end)
     start = index(role.start)
     return (end if end >= 0 else start, start)
+
+
+_LEVEL_SUFFIX = r"(?!\s+(?:I{1,3}|IV|V|VI|\d+)\b)"  # "Engineer" must not match "Engineer II"
+
+
+def _dates_near_role(
+    title: str, company: str, lines: list[str], used: set[int]
+) -> tuple[str, str] | None:
+    """The date range printed with this role: on the title's line, the line after it
+    (dates under the title), or the line before. Each line is used for one role only."""
+    if not title:
+        return None
+    pattern = re.compile(rf"(?<!\w){re.escape(title)}(?!\w){_LEVEL_SUFFIX}", re.I)
+    candidates = [i for i, line in enumerate(lines) if i not in used and pattern.search(line)]
+    if company:
+        nearby = [i for i in candidates if company.lower() in " ".join(lines[i : i + 2]).lower()]
+        candidates = nearby or candidates
+    for i in candidates:
+        for j in (i, i + 1, i - 1):
+            if 0 <= j < len(lines) and (ranges := find_date_ranges(lines[j])):
+                used.add(i)
+                return ranges[0]
+    return None
 
 
 def _year(value: str | None) -> str | None:

@@ -100,7 +100,8 @@ CANONICAL_SKILLS: dict[str, tuple[str, ...]] = {
     "Jenkins": (),
     "GitLab CI": ("gitlab ci/cd",),
     "Linux": ("unix",),
-    "Git": ("github", "gitlab", "version control"),
+    # Not "GitHub"/"GitLab": those are products (and GitLab is an employer).
+    "Git": ("version control",),
     "Nginx": (),
     "Prometheus": (),
     "Grafana": (),
@@ -198,8 +199,9 @@ _SEARCHABLE = sorted(
     (
         (alias, canonical)
         for canonical, aliases in CANONICAL_SKILLS.items()
-        if canonical not in _AMBIGUOUS
         for alias in (canonical, *aliases)
+        # Ambiguous names ("Go") are handled separately; their aliases ("golang") are fine.
+        if alias != canonical or canonical not in _AMBIGUOUS
         # Two-letter words (js, ts, py, ml) are too short to search for; "C#" is fine.
         if (len(alias) > 2 or not alias.isalpha()) and alias.lower() not in _UNSEARCHABLE_ALIASES
     ),
@@ -208,8 +210,41 @@ _SEARCHABLE = sorted(
 _SEARCH_RE = re.compile("|".join(_alias_pattern(a) for a, _ in _SEARCHABLE), re.I)
 
 
+# Ambiguous names count only when written exactly ("Go", not "go") inside a list of
+# skills: followed by a separator ("Go, Python", "Go or Rust"), or the last item after
+# one ("Python, Go" at the end of a line). Not "Go-to-market", "Grade: C", or
+# "the team; Spring is lovely".
+_AMBIGUOUS_RE = re.compile(
+    "|".join(rf"(?<![\w.+#-]){re.escape(name)}(?![\w+#-]|\.\w)" for name in _AMBIGUOUS)
+)
+_SEPARATOR_BEFORE = re.compile(r"(?:[,/|;(:]|\b(?:or|and)|&)\s*$")
+_SEPARATOR_AFTER = re.compile(r"^\s*(?:[,/|;)]|(?:or|and)\b|&(?=\s))")
+_LIST_END = re.compile(r"^\s*[.)]?\s*$")
+_R_AND_D = re.compile(r"\bR\s*&\s*D\b")
+
+
 def find_known_skills(text: str) -> list[str]:
-    """Known skills mentioned anywhere in free text. Used when the LLM is unavailable,
-    so it favours precision: ambiguous names (Go, R, Spring...) are never matched."""
-    found = (_LOOKUP[m.group(0).lower()] for m in _SEARCH_RE.finditer(text))
-    return normalize_skills(found)
+    """Known skills mentioned anywhere in free text, favouring precision. Used for job
+    descriptions and as the resume fallback when the LLM is unavailable."""
+    found: list[tuple[int, str]] = []
+    for line_start, line in _lines_with_offsets(text):
+        plain = [(m.start(), _LOOKUP[m.group(0).lower()]) for m in _SEARCH_RE.finditer(line)]
+        found += [(line_start + pos, skill) for pos, skill in plain]
+        if not plain:
+            continue  # ambiguous names need other skills on the same line
+        # Blank out "R&D" (same length, so offsets stay valid) before looking for "R".
+        masked = _R_AND_D.sub(lambda m: " " * len(m.group(0)), line)
+        for m in _AMBIGUOUS_RE.finditer(masked):
+            after = masked[m.end() :]
+            if _SEPARATOR_AFTER.match(after) or (
+                _LIST_END.match(after) and _SEPARATOR_BEFORE.search(masked[: m.start()])
+            ):
+                found.append((line_start + m.start(), m.group(0)))
+    return normalize_skills(skill for _, skill in sorted(found))
+
+
+def _lines_with_offsets(text: str) -> Iterable[tuple[int, str]]:
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        yield offset, line
+        offset += len(line)

@@ -30,7 +30,7 @@ PRESETS: dict[str, ProviderPreset] = {
             # Inside docker compose, the host's Ollama is at host.docker.internal.
             os.environ.get("OLLAMA_LOCAL_BASE_URL", "http://localhost:11434/v1"),
             None,
-            "qwen2.5:7b",
+            "qwen2.5:3b",
         ),
         ProviderPreset("ollama-cloud", "https://ollama.com/v1", "OLLAMA_API_KEY", "gpt-oss:120b"),
     )

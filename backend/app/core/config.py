@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # LLM: any OpenAI-compatible endpoint (OpenAI, local Ollama, Ollama cloud).
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: SecretStr = SecretStr("ollama")
-    llm_model: str = "qwen2.5:7b"
+    llm_model: str = "qwen2.5:3b"
     # Cheaper model for bulk calls such as skill extraction; falls back to llm_model.
     llm_model_fast: str | None = None
     llm_timeout_seconds: float = 120.0
@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     embed_base_url: str = "https://api.openai.com/v1"
     embed_api_key: SecretStr | None = None  # required when embed_provider=openai
     embed_cache_dir: str | None = None  # where fastembed keeps downloaded models
+
+    # Job ingestion. Skills always come from the free dictionary scan; the LLM pass is
+    # an optional extra, capped per run (meant for a local model; see ingestion/).
+    ingest_llm_skills: bool = False
+    ingest_llm_max_jobs: int = 25
 
     @field_validator("cors_origins", mode="before")
     @classmethod

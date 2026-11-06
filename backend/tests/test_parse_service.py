@@ -115,6 +115,7 @@ Python, SQL, Docker, Go
     # Mar 2020..Nov 2026 inclusive is 81 months; internship and degree dates excluded.
     assert profile.total_years_experience == 6.8
     assert set(profile.skills) == {
+        "Go",  # "Python, SQL, Docker, Go": a capitalized name at the end of a skill list
         "Apache Airflow",
         "Apache Spark",
         "AWS",
@@ -138,3 +139,52 @@ def test_embedding_text_is_compact() -> None:
     text = embedding_text(profile)
     assert text.startswith("Senior Backend Engineer. senior level, 7.4 years. Skills: JavaScript")
     assert "Senior Backend Engineer at Ledgerly" in text
+
+
+def test_missing_dates_are_recovered_from_the_text() -> None:
+    from app.parsing.service import build_profile
+
+    text = """Professional Experience
+Software Development Engineer II | Zentrix Technologies, Bengaluru
+June 2022 – Present
+Own the tracking services.
+Software Development Engineer | Zentrix Technologies, Bengaluru
+July 2020 – May 2022
+Northbeam — Staff Software Engineer (2021–Present)
+"""
+    reply = llm_reply(
+        roles=[
+            # What qwen2.5:3b returned: roles found, dates dropped.
+            LLMRole(title="Software Development Engineer II", company="Zentrix Technologies"),
+            LLMRole(title="Software Development Engineer", company="Zentrix Technologies"),
+            LLMRole(title="Staff Software Engineer", company="Northbeam", start="2021"),
+            LLMRole(title="Engineer", company="Elsewhere"),  # not in the text: left alone
+        ]
+    )
+    profile, warnings = build_profile(reply, today=TODAY, text=text)
+    dates = {r.title: (r.start, r.end) for r in profile.roles}
+    assert dates["Software Development Engineer II"] == ("2022-06", "present")
+    assert dates["Software Development Engineer"] == ("2020-07", "2022-05")  # not the II line
+    assert dates["Staff Software Engineer"] == ("2021", "present")
+    assert dates["Engineer"] == (None, None)
+    assert warnings == [
+        "No start date found for Engineer at Elsewhere.",
+        "No end date found for Engineer at Elsewhere.",
+    ]
+
+
+def test_llm_seniority_accepts_any_case_and_synonyms() -> None:
+    for given, expected in [("Senior", "senior"), ("Mid-level", "mid"), ("Staff", "lead")]:
+        assert llm_reply(seniority=given).seniority == expected
+
+
+def test_explicit_title_level_beats_llm_seniority() -> None:
+    from app.parsing.service import build_profile
+
+    # qwen2.5:3b called a "Senior Backend Engineer" lead.
+    profile, _ = build_profile(llm_reply(seniority="lead"), today=TODAY)
+    assert profile.seniority == "senior"
+    # No level in the title: the model's answer stands.
+    roles = [LLMRole(title="Data Scientist", company="Acme", start="2020", end="Present")]
+    profile, _ = build_profile(llm_reply(seniority="mid", roles=roles), today=TODAY)
+    assert profile.seniority == "mid"

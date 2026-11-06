@@ -113,8 +113,9 @@ export const api = {
   uploadResume: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    // Parsing calls an LLM; allow for a slow model (and, in production, a cold start).
-    return request<ResumeOut>("/resumes", { method: "POST", body: form, timeoutMs: 120_000 });
+    // Parsing calls an LLM: a free local model on CPU can take a couple of minutes,
+    // and in production the server may also be waking up. Matches LLM_TIMEOUT_SECONDS.
+    return request<ResumeOut>("/resumes", { method: "POST", body: form, timeoutMs: 300_000 });
   },
   getResume: (id: string) => request<ResumeOut>(`/resumes/${encodeURIComponent(id)}`),
   deleteResume: (id: string) =>

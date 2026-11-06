@@ -120,3 +120,5 @@ class IngestionRun(Base):
     error_details: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, server_default=sql_text("'[]'::jsonb")
     )
+    # Per-source counts: {"greenhouse": {"fetched": 2100, "inserted": 40, ...}}.
+    sources: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=sql_text("'{}'::jsonb"))

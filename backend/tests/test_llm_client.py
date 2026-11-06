@@ -119,3 +119,18 @@ def test_parse_json_object_tolerates_wrapping(content: str) -> None:
 def test_parse_json_object_rejects_non_objects(content: str) -> None:
     with pytest.raises(ValueError):
         parse_json_object(content)
+
+
+def test_prompt_schema_is_flat() -> None:
+    from app.llm.client import prompt_schema
+
+    class Inner(BaseModel):
+        title: str  # a field named "title" must survive title-stripping
+
+    class Outer(BaseModel):
+        items: list[Inner]
+
+    schema = prompt_schema(Outer)
+    assert "$defs" not in str(schema) and "$ref" not in str(schema)
+    assert schema["properties"]["items"]["items"]["properties"]["title"] == {"type": "string"}
+    assert "title" not in schema  # metadata title dropped

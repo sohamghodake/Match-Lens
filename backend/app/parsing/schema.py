@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # One scale for resumes and jobs, so Phase 4 can compare them directly.
 # "lead" covers staff, principal, architect and management titles.
@@ -53,6 +53,15 @@ class LLMEducation(BaseModel):
     end: str | None = Field(None, description="graduation year or date, as written")
 
 
+SENIORITY_SYNONYMS: dict[str, Seniority] = {
+    "internship": "intern", "student": "intern", "trainee": "intern",
+    "entry": "junior", "entry-level": "junior", "entry level": "junior", "jr": "junior",
+    "graduate": "junior", "mid-level": "mid", "mid level": "mid", "middle": "mid",
+    "intermediate": "mid", "senior-level": "senior", "sr": "senior", "staff": "lead",
+    "principal": "lead", "manager": "lead", "director": "lead", "executive": "lead",
+}  # fmt: skip
+
+
 class LLMResume(BaseModel):
     headline: str | None = Field(None, description="the candidate's current or target title")
     seniority: Seniority
@@ -60,3 +69,12 @@ class LLMResume(BaseModel):
     skills: list[str] = Field(description="technical skills, tools, languages, frameworks")
     roles: list[LLMRole] = Field(description="every job and internship, most recent first")
     education: list[LLMEducation] = []
+
+    @field_validator("seniority", mode="before")
+    @classmethod
+    def _seniority_any_case(cls, value: object) -> object:
+        # Small models answer "Senior" or "Mid-level"; that's not worth a failed parse.
+        if isinstance(value, str):
+            key = value.strip().lower().rstrip(".")
+            return SENIORITY_SYNONYMS.get(key, key)
+        return value
