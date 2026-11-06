@@ -11,8 +11,7 @@ type Check<T> =
 
 function describe(err: unknown): string {
   if (err instanceof ApiError) {
-    const detail = (err.body as { detail?: unknown } | null)?.detail;
-    return typeof detail === "string" ? `${err.message}: ${detail}` : err.message;
+    return err.detail ? `${err.message}: ${err.detail}` : err.message;
   }
   return String(err);
 }

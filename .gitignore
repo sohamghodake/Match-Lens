@@ -14,3 +14,6 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# Real resumes for local parsing checks; never commit these.
+backend/eval/private/

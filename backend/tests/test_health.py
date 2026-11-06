@@ -1,12 +1,20 @@
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.db.session import get_session
 from app.main import create_app
+
+
+def alembic_head() -> str | None:
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    return ScriptDirectory.from_config(config).get_current_head()
 
 
 def client_for(app) -> httpx.AsyncClient:
@@ -72,4 +80,4 @@ async def test_health_db_against_real_database(
     body = response.json()
     assert body["status"] == "ok"
     assert body["pgvector"]
-    assert body["migration"] == "0001"
+    assert body["migration"] == alembic_head()

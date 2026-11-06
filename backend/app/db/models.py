@@ -15,8 +15,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    text,
 )
+from sqlalchemy import text as sql_text  # `text` is also a Resume column name
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -45,11 +45,11 @@ class Job(Base):
     title: Mapped[str] = mapped_column(Text)
     company: Mapped[str] = mapped_column(Text)
     location: Mapped[str | None] = mapped_column(Text)
-    remote: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    remote: Mapped[bool] = mapped_column(Boolean, server_default=sql_text("false"))
     salary: Mapped[str | None] = mapped_column(Text)
     seniority: Mapped[str | None] = mapped_column(String(16))
     description: Mapped[str] = mapped_column(Text)
-    skills: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
+    skills: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=sql_text("'{}'"))
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # sha256 of the normalized title + company + description; catches the same
     # posting appearing on two sources and tells ingestion when to re-embed.
@@ -57,7 +57,7 @@ class Job(Base):
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIM))
     # Which model produced `embedding`; vectors from different models can't be compared.
     embed_model: Mapped[str | None] = mapped_column(String(128))
-    is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default=sql_text("true"))
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -92,6 +92,9 @@ class Resume(Base):
     parsed: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIM))
     embed_model: Mapped[str | None] = mapped_column(String(128))
+    # File facts recorded before redaction, for ATS checks: kind, pages, columns,
+    # tables, whether an email/phone/LinkedIn was present; plus parse method/warnings.
+    meta: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=sql_text("'{}'::jsonb"))
     # Indexed for the 24-hour deletion sweep.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
@@ -106,14 +109,14 @@ class IngestionRun(Base):
         DateTime(timezone=True), server_default=func.now(), index=True
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(16), server_default=text("'running'"))
-    fetched: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    inserted: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    updated: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    skipped: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    errors: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    status: Mapped[str] = mapped_column(String(16), server_default=sql_text("'running'"))
+    fetched: Mapped[int] = mapped_column(Integer, server_default=sql_text("0"))
+    inserted: Mapped[int] = mapped_column(Integer, server_default=sql_text("0"))
+    updated: Mapped[int] = mapped_column(Integer, server_default=sql_text("0"))
+    skipped: Mapped[int] = mapped_column(Integer, server_default=sql_text("0"))
+    errors: Mapped[int] = mapped_column(Integer, server_default=sql_text("0"))
     # [{"source": "remoteok", "message": "..."}], so one failing source is visible
     # without failing the whole run.
     error_details: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, server_default=text("'[]'::jsonb")
+        JSONB, server_default=sql_text("'[]'::jsonb")
     )

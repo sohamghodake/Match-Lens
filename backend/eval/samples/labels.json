@@ -1,0 +1,267 @@
+[
+  {
+    "file": "alex_chen_backend.pdf",
+    "layout": "single column; title and right-aligned dates on one line",
+    "seniority": "senior",
+    "roles": [
+      {
+        "title": "Senior Backend Engineer",
+        "company": "Ledgerly",
+        "start": "2022-03",
+        "end": "present"
+      },
+      {
+        "title": "Backend Engineer",
+        "company": "Parcelpoint",
+        "start": "2019-07",
+        "end": "2022-02"
+      },
+      {
+        "title": "Software Engineer Intern",
+        "company": "Parcelpoint",
+        "start": "2018-05",
+        "end": "2018-08"
+      }
+    ],
+    "education": [
+      {
+        "degree": "B.S.",
+        "field": "Computer Science",
+        "institution": "University of Washington",
+        "year": "2019"
+      }
+    ],
+    "skills": [
+      "Python",
+      "Go",
+      "SQL",
+      "FastAPI",
+      "Django",
+      "gRPC",
+      "PostgreSQL",
+      "Redis",
+      "Kafka",
+      "Docker",
+      "Kubernetes",
+      "AWS",
+      "Terraform"
+    ],
+    "contact": {
+      "email": true,
+      "phone": true,
+      "linkedin": true
+    },
+    "notes": ""
+  },
+  {
+    "file": "maria_gonzalez_data.pdf",
+    "layout": "two columns: sidebar (contact, skills, education) beside experience",
+    "seniority": "mid",
+    "roles": [
+      {
+        "title": "Data Scientist",
+        "company": "Brightwave Health",
+        "start": "2023-07",
+        "end": "present"
+      },
+      {
+        "title": "Data Analyst",
+        "company": "Cobalt Retail",
+        "start": "2022-01",
+        "end": "2023-06"
+      }
+    ],
+    "education": [
+      {
+        "degree": "M.S.",
+        "field": "Statistics",
+        "institution": "The University of Texas at Austin",
+        "year": "2021"
+      },
+      {
+        "degree": "B.S.",
+        "field": "Mathematics",
+        "institution": "Texas A&M University",
+        "year": "2019"
+      }
+    ],
+    "skills": [
+      "Python",
+      "SQL",
+      "pandas",
+      "scikit-learn",
+      "PyTorch",
+      "Apache Spark",
+      "Apache Airflow",
+      "Tableau",
+      "AWS"
+    ],
+    "contact": {
+      "email": true,
+      "phone": true,
+      "linkedin": true
+    },
+    "notes": "~4.9 years; mid by experience."
+  },
+  {
+    "file": "sam_okafor_frontend.docx",
+    "layout": "DOCX; contact in page header; roles in a borderless table",
+    "seniority": "junior",
+    "roles": [
+      {
+        "title": "Frontend Developer",
+        "company": "Lumen Studio",
+        "start": "2024-09",
+        "end": "present"
+      },
+      {
+        "title": "Junior Web Developer (Contract)",
+        "company": "Harbour & Finch",
+        "start": "2024-01",
+        "end": "2024-08"
+      }
+    ],
+    "education": [
+      {
+        "degree": "Bootcamp certificate",
+        "field": "Full-Stack Web Development",
+        "institution": "Northcoders",
+        "year": "2023"
+      },
+      {
+        "degree": "BA",
+        "field": "History",
+        "institution": "University of Leeds",
+        "year": "2022"
+      }
+    ],
+    "skills": [
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Next.js",
+      "Tailwind CSS",
+      "Jest",
+      "Figma"
+    ],
+    "contact": {
+      "email": true,
+      "phone": true,
+      "linkedin": false
+    },
+    "notes": "~2.9 years after a career change; junior or mid are both defensible."
+  },
+  {
+    "file": "priya_nair_fullstack.docx",
+    "layout": "DOCX; plain paragraphs; promotion at the same company; Indian format",
+    "seniority": "mid",
+    "roles": [
+      {
+        "title": "Software Development Engineer II",
+        "company": "Zentrix Technologies",
+        "start": "2022-06",
+        "end": "present"
+      },
+      {
+        "title": "Software Development Engineer",
+        "company": "Zentrix Technologies",
+        "start": "2020-07",
+        "end": "2022-05"
+      },
+      {
+        "title": "Software Engineering Intern",
+        "company": "Kalpa Systems",
+        "start": "2020-01",
+        "end": "2020-06"
+      }
+    ],
+    "education": [
+      {
+        "degree": "B.Tech",
+        "field": "Computer Science and Engineering",
+        "institution": "National Institute of Technology, Tiruchirappalli",
+        "year": "2020"
+      }
+    ],
+    "skills": [
+      "Java",
+      "Spring Boot",
+      "Node.js",
+      "PostgreSQL",
+      "MongoDB",
+      "AWS",
+      "Microservices",
+      "Docker",
+      "Jenkins"
+    ],
+    "contact": {
+      "email": true,
+      "phone": true,
+      "linkedin": true
+    },
+    "notes": "SDE II with ~6.4 years; mid by title, senior by years."
+  },
+  {
+    "file": "daniel_weiss_staff.pdf",
+    "layout": "single column; company first; year-only dates in parentheses",
+    "seniority": "lead",
+    "roles": [
+      {
+        "title": "Staff Software Engineer",
+        "company": "Northbeam",
+        "start": "2021",
+        "end": "present"
+      },
+      {
+        "title": "Engineering Lead",
+        "company": "Quillstack",
+        "start": "2018",
+        "end": "2021"
+      },
+      {
+        "title": "Senior Software Engineer",
+        "company": "Quillstack",
+        "start": "2016",
+        "end": "2018"
+      },
+      {
+        "title": "Software Engineer",
+        "company": "Atlas Freight",
+        "start": "2013",
+        "end": "2016"
+      },
+      {
+        "title": "Junior Developer",
+        "company": "Pixelmint",
+        "start": "2012",
+        "end": "2013"
+      }
+    ],
+    "education": [
+      {
+        "degree": "B.A.Sc.",
+        "field": "Software Engineering",
+        "institution": "University of Waterloo",
+        "year": "2012"
+      }
+    ],
+    "skills": [
+      "Scala",
+      "Java",
+      "Kotlin",
+      "Kafka",
+      "Apache Spark",
+      "Kubernetes",
+      "Google Cloud",
+      "Terraform",
+      "gRPC",
+      "PostgreSQL"
+    ],
+    "contact": {
+      "email": true,
+      "phone": true,
+      "linkedin": false
+    },
+    "notes": ""
+  }
+]
