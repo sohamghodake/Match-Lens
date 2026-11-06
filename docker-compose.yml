@@ -1,0 +1,73 @@
+# Local development: `docker compose up` → http://localhost:3100
+# Host ports default to 3100 / 8100 / 5440 and can be changed in .env.
+name: matchlens
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: matchlens
+      POSTGRES_PASSWORD: matchlens
+      POSTGRES_DB: matchlens
+    ports:
+      - "127.0.0.1:${DB_PORT:-5440}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchlens -d matchlens"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "true"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # These override .env, whose values are meant for tools run on the host.
+      DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@db:5432/matchlens
+      TEST_DATABASE_URL: postgresql+asyncpg://matchlens:matchlens@db:5432/matchlens
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-3100}
+      # Without a .env, point at the host's Ollama (localhost would be this container).
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_LOCAL_BASE_URL: http://host.docker.internal:11434/v1
+    command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "${BACKEND_PORT:-8100}:8000"
+    volumes:
+      - ./backend:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8100}
+    ports:
+      - "${FRONTEND_PORT:-3100}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+  # Optional local model server: `docker compose --profile ollama up`, then
+  # `docker compose exec ollama ollama pull qwen2.5:7b` and set
+  # LLM_BASE_URL=http://ollama:11434/v1 in .env.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  pgdata:
+  ollama:
