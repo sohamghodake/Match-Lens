@@ -7,10 +7,29 @@ import {
   api,
   ApiError,
   errorMessage,
+  type Country,
   type Match,
   type MatchesOut,
   type Seniority,
 } from "@/lib/api";
+
+const COUNTRY_KEY = "matchlens.country";
+
+function storedCountry(): string | undefined {
+  try {
+    return window.localStorage.getItem(COUNTRY_KEY) ?? undefined;
+  } catch {
+    return undefined; // private mode or blocked storage: fall back to the resume's country
+  }
+}
+
+function storeCountry(value: string): void {
+  try {
+    window.localStorage.setItem(COUNTRY_KEY, value);
+  } catch {
+    // Not remembering the choice is fine.
+  }
+}
 import { formatPostedAgo, sourceLabel } from "@/lib/format";
 
 const LEVELS: { value: Seniority; label: string }[] = [
@@ -60,7 +79,7 @@ function Chips({ label, items, tone }: { label: string; items: string[]; tone: "
   );
 }
 
-function JobCard({ match, rank }: { match: Match; rank: number }) {
+function JobCard({ match, rank, resumeId }: { match: Match; rank: number; resumeId: string }) {
   const { job } = match;
   const badge = fit(match.score);
   const posted = formatPostedAgo(job.posted_at);
@@ -89,14 +108,22 @@ function JobCard({ match, rank }: { match: Match; rank: number }) {
       <p className="text-sm">{match.reason}</p>
       <Chips label="You have" items={match.matched_skills} tone="have" />
       <Chips label="Missing" items={match.missing_skills} tone="missing" />
-      <a
-        href={job.url}
-        target="_blank"
-        rel="noopener"
-        className="inline-block text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
-      >
-        View job on {sourceLabel(job.source)} ↗
-      </a>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm font-medium">
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noopener"
+          className="text-emerald-700 hover:underline dark:text-emerald-400"
+        >
+          View job on {sourceLabel(job.source)} ↗
+        </a>
+        <Link
+          href={`/resume/${resumeId}/ats?job=${job.id}&title=${encodeURIComponent(`${job.title} at ${job.company}`)}`}
+          className="text-zinc-700 hover:underline dark:text-zinc-300"
+        >
+          Check ATS fit
+        </Link>
+      </div>
     </li>
   );
 }
@@ -109,6 +136,10 @@ export function MatchesLoader({ params }: { params: Promise<{ id: string }> }) {
 function MatchesView({ resumeId }: { resumeId: string }) {
   const [posted, setPosted] = useState<number | null>(null);
   const [levels, setLevels] = useState<Seniority[]>([]);
+  // undefined: let the server use the resume's country; "ANY": no location filter.
+  const [country, setCountry] = useState<string | undefined>(storedCountry);
+  const [includeUnspecified, setIncludeUnspecified] = useState(true);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [refresh, setRefresh] = useState(0);
   const [state, setState] = useState<State>({ kind: "loading" });
   const handledRefresh = useRef(0);
@@ -118,7 +149,13 @@ function MatchesView({ resumeId }: { resumeId: string }) {
     // Only the run triggered by "try again" skips the server's cache.
     const force = refresh !== handledRefresh.current;
     handledRefresh.current = refresh;
-    api.getMatches(resumeId, { posted_within_days: posted, seniority: levels }, force).then(
+    const filters = {
+      posted_within_days: posted,
+      seniority: levels,
+      country,
+      include_unspecified: includeUnspecified,
+    };
+    api.getMatches(resumeId, filters, force).then(
       (data) => {
         if (!cancelled) setState({ kind: "ok", data });
       },
@@ -131,7 +168,20 @@ function MatchesView({ resumeId }: { resumeId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [resumeId, posted, levels, refresh]);
+  }, [resumeId, posted, levels, country, includeUnspecified, refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getCountries().then(
+      (list) => {
+        if (!cancelled) setCountries(list);
+      },
+      () => {}, // the selector just keeps its current value
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function changePosted(value: number | null) {
     setState({ kind: "loading" });
@@ -143,6 +193,17 @@ function MatchesView({ resumeId }: { resumeId: string }) {
     setLevels((current) =>
       current.includes(level) ? current.filter((l) => l !== level) : [...current, level],
     );
+  }
+
+  function changeCountry(value: string) {
+    setState({ kind: "loading" });
+    setCountry(value);
+    storeCountry(value);
+  }
+
+  function changeIncludeUnspecified(value: boolean) {
+    setState({ kind: "loading" });
+    setIncludeUnspecified(value);
   }
 
   function retry() {
@@ -163,6 +224,10 @@ function MatchesView({ resumeId }: { resumeId: string }) {
       </div>
     );
   }
+
+  // What the server actually applied (it may have used the resume's country).
+  const appliedCountry = state.kind === "ok" ? state.data.filters.country : undefined;
+  const selectValue = country ?? appliedCountry ?? "ANY";
 
   const pill = (active: boolean) =>
     `rounded-full border px-3 py-1 text-sm ${
@@ -188,6 +253,40 @@ function MatchesView({ resumeId }: { resumeId: string }) {
       </header>
 
       <div className="space-y-3" role="group" aria-label="Filters">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <label htmlFor="country" className="w-12 text-sm text-zinc-500">
+            Where
+          </label>
+          <select
+            id="country"
+            value={selectValue}
+            onChange={(event) => changeCountry(event.target.value)}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="ANY">Anywhere (no location filter)</option>
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                Open to someone in {c.name}
+              </option>
+            ))}
+          </select>
+          {selectValue !== "ANY" && (
+            <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+              <input
+                type="checkbox"
+                checked={includeUnspecified}
+                onChange={(event) => changeIncludeUnspecified(event.target.checked)}
+              />
+              Include jobs that don&apos;t say where
+            </label>
+          )}
+        </div>
+        {selectValue === "ANY" && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Most remote jobs are limited to certain countries. Choose yours to hide ones you
+            can&apos;t take.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <span className="w-12 text-sm text-zinc-500">Posted</span>
           {POSTED.map((option) => (
@@ -256,7 +355,7 @@ function MatchesView({ resumeId }: { resumeId: string }) {
           ) : (
             <ol className="space-y-3">
               {state.data.matches.map((match, i) => (
-                <JobCard key={match.job.id} match={match} rank={i + 1} />
+                <JobCard key={match.job.id} match={match} rank={i + 1} resumeId={resumeId} />
               ))}
             </ol>
           )}

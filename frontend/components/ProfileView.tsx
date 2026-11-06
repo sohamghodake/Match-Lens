@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AtsPanel } from "@/components/AtsPanel";
 import { api, errorMessage, type ResumeOut, type Seniority } from "@/lib/api";
 import { formatDateRange, formatTimeUntil, formatYears } from "@/lib/format";
 
@@ -140,6 +141,10 @@ export function ProfileView({ resume }: { resume: ResumeOut }) {
           </ul>
         </Section>
       )}
+
+      <Section title="ATS check">
+        <AtsPanel resumeId={resume.id} />
+      </Section>
 
       <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 pt-4 text-sm dark:border-zinc-800">
         <span className="text-zinc-500">Deleted automatically {formatTimeUntil(resume.expires_at)}.</span>

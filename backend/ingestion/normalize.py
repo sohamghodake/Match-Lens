@@ -11,6 +11,7 @@ from typing import Literal
 
 from bs4 import BeautifulSoup
 
+from app.parsing.locations import parse_places
 from app.parsing.seniority import seniority_from_title
 from app.parsing.skills import find_known_skills
 from ingestion.models import RawJob
@@ -62,6 +63,7 @@ class NormalizedJob:
     seniority: str | None
     description: str
     skills: list[str]
+    regions: list[str]
     posted_at: datetime | None
     content_hash: str
     dedupe_key: str  # company + title, for spotting one job posted on two sources
@@ -134,6 +136,17 @@ def dedupe_key(company: str, title: str) -> str:
     return f"{company_key}|{title_key}"
 
 
+def job_places(location: str | None, title: str) -> list[str]:
+    """Places from the location field; failing that, from the title's tagged segments
+    ("Staff AI Engineer | USA | Remote"), but never the main title text, where
+    "Asia Pacific Payments" names a team, not a location."""
+    places = parse_places(location)
+    if places:
+        return places
+    segments = re.split(r"[|()\[\]–—]| - ", title)[1:]
+    return parse_places(" ; ".join(s for s in segments if len(s.split()) <= 4))
+
+
 def content_hash(title: str, company: str, location: str | None, description: str) -> str:
     """Changes whenever anything a user would see changes, so the job is re-embedded."""
     joined = "\x1f".join(_norm(part) for part in (title, company, location, description))
@@ -165,6 +178,7 @@ def normalize(raw: RawJob) -> NormalizedJob | SkipReason:
         seniority=seniority_from_title(title),
         description=description,
         skills=find_known_skills(f"{title}\n{description}"),
+        regions=job_places(raw.location, title),
         posted_at=raw.posted_at,
         content_hash=content_hash(title, company, raw.location, description),
         dedupe_key=dedupe_key(company, title),

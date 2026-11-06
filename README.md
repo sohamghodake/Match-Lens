@@ -25,8 +25,8 @@ flowchart LR
 | 2 · Resume parsing | ✅ done |
 | 3 · Job ingestion | ✅ done |
 | 4 · Matching | ✅ done |
-| 5 · ATS scoring | next |
-| 6 · Evaluation + tests | |
+| 5 · ATS scoring | ✅ done |
+| 6 · Evaluation + tests | next |
 | 7 · Deployment + demo polish | |
 
 ## Run it locally
@@ -88,7 +88,7 @@ So the pipeline uses the dictionary only. `--llm-skills` stays available for a s
 
 ## Matching
 
-`GET /resumes/{id}/matches` (UI: **Find matching jobs** on a parsed resume) returns the 20 best remote jobs, each with a 0–100 fit score, a one-line reason, the skills you have, and the ones you're missing. Optional filters: `posted_within_days` and `seniority` (repeatable). Results are cached per resume and filter set for 12 hours; `refresh=true` recomputes them.
+`GET /resumes/{id}/matches` (UI: **Find matching jobs** on a parsed resume) returns the 20 best remote jobs, each with a 0–100 fit score, a one-line reason, the skills you have, and the ones you're missing. Optional filters: `country` (jobs open to someone there; it defaults to the resume's country, and `ANY` turns it off), `include_unspecified`, `posted_within_days` and `seniority` (repeatable). Results are cached per resume and filter set for 12 hours; `refresh=true` recomputes them.
 
 ```bash
 docker compose exec backend python -m scripts.match_bench RESUME_ID -p groq -p groq=openai/gpt-oss-20b
@@ -104,6 +104,19 @@ End-to-end latency on one real resume (a student) against 1,460 active jobs, 6 N
 | Local `qwen2.5:3b` (CPU) | 275 s | 14 ms | 275 s | 3,090 | a *Senior* ML Engineer role, for an intern |
 
 A cached repeat takes about 15 ms. Ranking quality (precision@10 for vector-only, hybrid, and hybrid + re-rank) is measured in Phase 6.
+
+## ATS check
+
+`POST /ats` with `resume_id` and either `job_description` (pasted text) or `job_id` (a stored job). In the UI it's on the profile page (paste a description) and behind **Check ATS fit** on every match card.
+
+The score is 100 minus a list of deductions, and each one states its points, its reason and a fix:
+
+| Part | Points | What loses points |
+| --- | --- | --- |
+| Keyword coverage | 40 | Each missing keyword, required counting double; the same skill in different wording ("Postgres" vs "PostgreSQL") counts, with a tip |
+| Sections and contact details | 20 | No email (3), no phone (2), no Experience (6, or 3 if Projects stand in), Education (4) or Skills (5) heading |
+| Formatting risks | 20 | Two columns (8), tables (5), longer than two pages or very thin (4) |
+| Seniority and experience | 20 | Level gap (6 for one level, 12 for two or more), fewer years than asked (up to 8) |
 
 ## Parser evaluation
 
@@ -167,6 +180,14 @@ Each line reports whether the JSON validated, whether the repair retry was neede
 - `/health` never touches the database. Render polls it, and a query on every poll would keep Neon's free compute awake around the clock (100 compute-hours a month is about 3 hours a day). `/health/db` is the deep check: database reachable, pgvector version, current migration.
 - One backend Dockerfile serves both compose (dev dependencies, bind mount, `--reload`) and Render (`$PORT`, non-root user).
 
+**Phase 5: ATS scoring**
+
+- **Every point lost is itemized.** A part's score is its maximum minus its deductions, and each deduction carries its reason and a fix. A test checks across 300 random inputs that the deductions add up exactly to the points lost. Per-keyword rounding is corrected so that missing every keyword scores exactly 0, not 0.1.
+- **Keywords keep the posting's wording**, because ATS match words. One LLM call extracts required and preferred keywords; anything not actually in the posting is dropped; generic phrases ("personal projects", "AI tools") are removed unless they're known skills; combined ones are split ("JavaScript/TypeScript", but "CI/CD" stays). The dictionary scan adds skills the model missed and does the whole job if the model is unavailable.
+- **Synonyms only via safe aliases.** "REST APIs" doesn't match the word "rest" in "the rest of the team", and a tip quotes your resume's own wording ("DSA").
+- **The same posting always gets the same score.** The model's keyword list varies slightly between calls (one job scored 82.2, then 80), so each posting's analysis is cached by a hash of its text. Failed analyses aren't cached, so the next request retries the model.
+- **Formatting checks use facts recorded at upload** (columns, tables, length, whether an email or phone was present before redaction), so the stored text never needs the contact details.
+
 **Phase 4: matching**
 
 - **Three stages, as planned:** pgvector cosine search for the 100 nearest active jobs; a hybrid score (0.55 × normalized similarity + 0.45 × the share of the job's listed skills you have, minus a seniority-gap penalty); then one LLM call that scores the top 20 with a reason each.
@@ -179,7 +200,9 @@ Each line reports whether the JSON validated, whether the repair retry was neede
 - **Projects are part of the profile.** For students they're most of the signal; your Hive and Ironwork projects moved Go/PostgreSQL/LLM roles up the list.
 - **Identical concurrent requests make one AI call** (a per-resume, per-filter lock), so double-clicks and second tabs don't spend the token budget twice.
 - **Fixed along the way in ingestion:** annotation and "AI trainer" gigs are excluded; garbled text from Remote OK's feed (`â\x80\x99` for `’`) is repaired; and stored jobs that a changed filter now rejects are deactivated instead of lingering.
-- **Known gap: location eligibility.** Most remote roles are restricted ("Remote, US", "Remote – Brazil"), and matching doesn't yet know where you can work.
+- **Location eligibility.** Most "remote" roles are restricted ("Remote - USA", "Canada (Remote)"). Ingestion turns each location into country codes and region tags (58 countries; WORLDWIDE, EUROPE, EMEA, APAC, LATAM…). A candidate in country C sees jobs tagged C, WORLDWIDE or a region containing C, plus (by default) jobs that don't say where. "Anywhere in EMEA" counts as EMEA, not worldwide. Of 1,460 active jobs, 610 are US-only and 44 are open to someone in India, so for many candidates this filter changes the list more than anything else.
+- **Derived fields are refreshed on every ingestion run.** Skills, seniority and places come from rules that keep improving, so an unchanged posting still gets the current versions (and a new embedding when skills or seniority change). The first refresh corrected 1,325 stored jobs, including the old "GitLab means Git" tag.
+- **Project skills count as the candidate's skills.** Once projects were parsed separately, their technologies (Raft, pgvector, Prometheus…) had stopped reaching the skill list matching uses.
 
 **Phase 3: job ingestion**
 
@@ -222,12 +245,13 @@ Each line reports whether the JSON validated, whether the repair retry was neede
 
 ```text
 backend/
-  app/api/          routes: health, resumes, matches
+  app/api/          routes: health, resumes, matches (+ countries), ats
   app/core/         settings, logging
   app/db/           models, session, Alembic migrations
   app/llm/          LLMClient, embedding providers, provider presets
   app/parsing/      extraction, redaction, dates, skills, seniority, parse service
   app/matching/     retrieve (pgvector), score (hybrid), rerank (LLM), service, schema
+  app/ats/          job-description analysis and explainable scoring
   ingestion/        scrapers/ (remotive, remoteok, greenhouse), normalize, dedupe, store, run
   eval/             sample resumes + labels, parser evaluation, job-skill comparison
   scripts/          smoke_llm, provider_info, match_bench, reparse_resumes

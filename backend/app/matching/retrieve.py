@@ -3,11 +3,12 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, or_, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Job
 from app.matching.schema import MatchFilters
+from app.parsing.locations import eligible_places
 
 # An HNSW scan returns at most ef_search rows (default 40), however high the LIMIT, so
 # it is raised above the candidate count. Filters are applied after the scan, so give
@@ -61,6 +62,11 @@ async def retrieve(
         query = query.where(
             or_(Job.posted_at >= cutoff, and_(Job.posted_at.is_(None), Job.first_seen_at >= cutoff))
         )
+    if filters.country:
+        open_to_you = Job.regions.overlap(eligible_places(filters.country))
+        if filters.include_unspecified:
+            open_to_you = or_(open_to_you, func.cardinality(Job.regions) == 0)
+        query = query.where(open_to_you)
     if filters.seniority:
         query = query.where(or_(Job.seniority.in_(filters.seniority), Job.seniority.is_(None)))
 

@@ -17,3 +17,6 @@ __pycache__/
 
 # Real resumes for local parsing checks; never commit these.
 backend/eval/private/
+
+# Personal notes (resume drafts); never commit.
+notes/

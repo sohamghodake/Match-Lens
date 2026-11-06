@@ -34,7 +34,7 @@ from app.db.session import get_sessionmaker
 from app.llm.client import get_llm_client
 from app.llm.embeddings import Embedder, get_embedder
 from ingestion import store
-from ingestion.dedupe import Deduper
+from ingestion.dedupe import Deduper, derived_differs
 from ingestion.llm_skills import enrich_skills
 from ingestion.models import FeedPage
 from ingestion.normalize import NormalizedJob, embedding_text, normalize
@@ -53,6 +53,7 @@ class SourceStats:
     inserted: int = 0
     updated: int = 0
     unchanged: int = 0
+    refreshed: int = 0  # unchanged postings whose derived fields were recomputed
     duplicates: int = 0
     filtered: dict[str, int] = field(default_factory=dict)
     deactivated: int = 0
@@ -185,6 +186,7 @@ async def run(
     new: list[NormalizedJob] = []
     changed: list[tuple[int, NormalizedJob]] = []
     unchanged_ids: list[int] = []
+    refresh: list[tuple[int, NormalizedJob, bool]] = []  # (id, job, needs re-embedding)
     seen_ids: set[tuple[str, str]] = set()
     for job in kept:
         if (job.source, job.source_id) in seen_ids:  # listed twice in one feed
@@ -201,11 +203,17 @@ async def run(
             assert job_id is not None
             unchanged_ids.append(job_id)
             stats[job.source].unchanged += 1
+            stored = deduper.stored(job)
+            assert stored is not None
+            differs, reembed = derived_differs(stored, job)
+            if differs:
+                refresh.append((job_id, job, reembed))
+                stats[job.source].refreshed += 1
         else:
             stats[job.source].duplicates += 1
 
     # Optional LLM skills, then embeddings, for new and changed jobs only.
-    to_embed = new + [job for _, job in changed]
+    to_embed = new + [job for _, job in changed] + [job for _, job, again in refresh if again]
     llm_summary = None
     if llm_skills and to_embed:
         enrich = await enrich_skills(to_embed, get_llm_client(), max_jobs=llm_max_jobs)
@@ -229,6 +237,11 @@ async def run(
             now,
         )
         await store.touch_jobs(session, unchanged_ids, now)
+        await store.refresh_derived(
+            session,
+            [(i, j, vector_by_key.get((j.source, j.source_id))) for i, j, _ in refresh],
+            embedder.model_name,
+        )
         for source_name, count in (await store.deactivate_rejected(session, rejected)).items():
             stats[source_name].deactivated += count
         for source_name, scope in complete_scopes:
@@ -256,7 +269,7 @@ async def run(
 def print_summary(result: RunResult, dry_run: bool) -> None:
     prefix = "DRY RUN, nothing written. " if dry_run else ""
     print(f"\n{prefix}status: {result.status} in {result.seconds:.1f} s")
-    columns = ("fetched", "kept", "new", "changed", "same", "dupes", "closed")
+    columns = ("fetched", "kept", "new", "changed", "same", "refresh", "dupes", "closed")
     print(f"{'source':<11} " + " ".join(f"{c:>7}" for c in columns) + "  filtered")
     for name, s in result.stats.items():
         filtered = ", ".join(f"{k} {v}" for k, v in sorted(s.filtered.items())) or "-"
@@ -270,6 +283,7 @@ def print_summary(result: RunResult, dry_run: bool) -> None:
                     s.inserted,
                     s.updated,
                     s.unchanged,
+                    s.refreshed,
                     s.duplicates,
                     s.deactivated,
                 )

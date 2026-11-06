@@ -86,6 +86,7 @@ export type Match = {
     salary: string | null;
     seniority: Seniority | null;
     posted_at: string | null;
+    regions: string[];
   };
   score: number;
   reason: string;
@@ -99,7 +100,11 @@ export type Match = {
 export type MatchFilters = {
   posted_within_days: number | null;
   seniority: Seniority[] | null;
+  country: string | null; // ISO code; null = anywhere
+  include_unspecified: boolean;
 };
+
+export type Country = { code: string; name: string };
 
 export type MatchesOut = {
   resume_id: string;
@@ -113,6 +118,34 @@ export type MatchesOut = {
   timings: { retrieve_ms: number; score_ms: number; rerank_ms: number; total_ms: number };
   tokens: number | null;
   matches: Match[];
+};
+
+export type AtsDeduction = { points: number; reason: string; suggestion: string };
+
+export type AtsPart = {
+  key: "keywords" | "sections" | "formatting" | "seniority";
+  name: string;
+  max_points: number;
+  points: number;
+  deductions: AtsDeduction[];
+  notes: { message: string }[];
+};
+
+export type AtsKeyword = {
+  keyword: string;
+  importance: "required" | "preferred";
+  status: "found" | "synonym" | "missing";
+  resume_term: string | null;
+};
+
+export type AtsReport = {
+  resume_id: string;
+  generated_at: string;
+  score: number;
+  parts: AtsPart[];
+  keywords: AtsKeyword[];
+  job: { title: string | null; seniority: Seniority | null; min_years: number | null };
+  analysis_method: "llm" | "rules";
 };
 
 export class ApiError extends Error {
@@ -133,15 +166,23 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = { method?: string; body?: BodyInit; timeoutMs?: number };
+type RequestOptions = {
+  method?: string;
+  body?: BodyInit;
+  json?: unknown;
+  timeoutMs?: number;
+};
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, timeoutMs = 10_000 } = options;
+  const { method = "GET", json, timeoutMs = 10_000 } = options;
+  const body = json === undefined ? options.body : JSON.stringify(json);
+  const headers = json === undefined ? undefined : { "Content-Type": "application/json" };
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       method,
       body,
+      headers,
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
@@ -166,13 +207,33 @@ export const api = {
     // and in production the server may also be waking up. Matches LLM_TIMEOUT_SECONDS.
     return request<ResumeOut>("/resumes", { method: "POST", body: form, timeoutMs: 300_000 });
   },
+  getCountries: () => request<Country[]>("/locations/countries"),
+  /** Exactly one of jobDescription / jobId. */
+  ats: (resumeId: string, source: { jobDescription: string } | { jobId: number }) =>
+    request<AtsReport>("/ats", {
+      method: "POST",
+      json: {
+        resume_id: resumeId,
+        ...("jobId" in source
+          ? { job_id: source.jobId }
+          : { job_description: source.jobDescription }),
+      },
+      timeoutMs: 60_000,
+    }),
   getResume: (id: string) => request<ResumeOut>(`/resumes/${encodeURIComponent(id)}`),
   deleteResume: (id: string) =>
     request<void>(`/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  getMatches: (id: string, filters: Partial<MatchFilters> = {}, refresh = false) => {
+  /** `country`: an ISO code, "ANY" for no filter, or undefined for the resume's country. */
+  getMatches: (
+    id: string,
+    filters: Partial<Omit<MatchFilters, "country">> & { country?: string } = {},
+    refresh = false,
+  ) => {
     const params = new URLSearchParams();
     if (filters.posted_within_days) params.set("posted_within_days", String(filters.posted_within_days));
     for (const level of filters.seniority ?? []) params.append("seniority", level);
+    if (filters.country) params.set("country", filters.country);
+    if (filters.include_unspecified === false) params.set("include_unspecified", "false");
     if (refresh) params.set("refresh", "true");
     const query = params.size ? `?${params}` : "";
     // An LLM call, possibly waiting out a free-tier rate limit.

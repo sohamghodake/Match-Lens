@@ -11,6 +11,10 @@ class MatchFilters(BaseModel):
     posted_within_days: int | None = Field(None, ge=1, le=365)
     # Only these levels; jobs whose title states no level are always included.
     seniority: list[Seniority] | None = None
+    # Only jobs open to someone in this country (ISO code); None means anywhere.
+    country: str | None = None
+    # With a country set, also keep jobs whose posting doesn't say where.
+    include_unspecified: bool = True
 
     def cache_key(self) -> str:
         data = self.model_dump()
@@ -29,6 +33,7 @@ class JobOut(BaseModel):
     salary: str | None
     seniority: str | None
     posted_at: datetime | None
+    regions: list[str] = []
 
 
 class MatchOut(BaseModel):

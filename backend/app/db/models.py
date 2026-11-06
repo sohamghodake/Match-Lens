@@ -51,6 +51,9 @@ class Job(Base):
     seniority: Mapped[str | None] = mapped_column(String(16))
     description: Mapped[str] = mapped_column(Text)
     skills: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=sql_text("'{}'"))
+    # Where the job can be done: ISO country codes and region tags ("US", "EUROPE",
+    # "WORLDWIDE"); empty when the posting doesn't say. See app/parsing/locations.py.
+    regions: Mapped[list[str]] = mapped_column(ARRAY(String(16)), server_default=sql_text("'{}'"))
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # sha256 of the normalized title + company + description; catches the same
     # posting appearing on two sources and tells ingestion when to re-embed.
@@ -72,6 +75,7 @@ class Job(Base):
     __table_args__ = (
         UniqueConstraint("source", "source_id", name="uq_jobs_source_source_id"),
         Index("ix_jobs_active_posted_at", "is_active", "posted_at"),
+        Index("ix_jobs_regions", "regions", postgresql_using="gin"),
         Index(
             "ix_jobs_embedding_hnsw",
             "embedding",

@@ -190,3 +190,22 @@ async def test_dry_run_writes_nothing(db_session: AsyncSession, tmp_path: Path) 
     )  # fmt: skip
     assert result.stats["greenhouse"].inserted == 2  # what it would insert
     assert await ours(db_session) == {}
+
+
+async def test_unchanged_jobs_get_refreshed_derived_fields(
+    db_session: AsyncSession, tmp_path: Path
+) -> None:
+    replay = write_feeds(tmp_path / "feeds", feeds())
+    embedder = FakeEmbedder()
+    await ingest(db_session, replay, embedder)
+    # Simulate rows stored by older rules: stale skills and no places.
+    job = (await ours(db_session))["greenhouse:samsara:1"]
+    job.skills, job.regions = ["Git"], []
+    await db_session.flush()
+
+    result = await ingest(db_session, replay, embedder, NOW + timedelta(days=1))
+    assert result.stats["greenhouse"].unchanged == 2
+    assert result.stats["greenhouse"].refreshed == 1
+    await db_session.refresh(job)
+    assert job.skills == ["Python", "Go"] and job.regions == []  # "Remote" names no place
+    assert len(embedder.embedded) == 4  # re-embedded, since skills feed the embedding

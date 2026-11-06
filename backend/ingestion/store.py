@@ -20,7 +20,7 @@ async def load_stored(session: AsyncSession) -> list[StoredJob]:
     rows = await session.execute(
         select(
             Job.id, Job.source, Job.source_id, Job.content_hash, Job.company, Job.title,
-            Job.is_active,
+            Job.is_active, Job.skills, Job.seniority, Job.regions,
         )
     )  # fmt: skip
     return [StoredJob(*row) for row in rows]
@@ -39,6 +39,7 @@ def _values(job: NormalizedJob, vector: list[float] | None, embed_model: str | N
         "seniority": job.seniority,
         "description": job.description,
         "skills": job.skills,
+        "regions": job.regions,
         "posted_at": job.posted_at,
         "content_hash": job.content_hash,
         "embedding": vector,
@@ -131,3 +132,17 @@ async def deactivate_rejected(
             )
             counts[source] = counts.get(source, 0) + (result.rowcount or 0)
     return counts
+
+
+async def refresh_derived(
+    session: AsyncSession,
+    jobs: Sequence[tuple[int, NormalizedJob, list[float] | None]],
+    embed_model: str | None,
+) -> None:
+    """Unchanged postings whose derived fields (skills, seniority, places) differ from
+    what the current rules produce: update them, and the embedding when given."""
+    for job_id, job, vector in jobs:
+        values: dict = {"skills": job.skills, "seniority": job.seniority, "regions": job.regions}
+        if vector is not None:
+            values |= {"embedding": vector, "embed_model": embed_model}
+        await session.execute(update(Job).where(Job.id == job_id).values(**values))

@@ -20,6 +20,7 @@ from app.parsing.dates import (
     parse_date,
     total_years,
 )
+from app.parsing.locations import country_code
 from app.parsing.schema import Education, LLMResume, Project, ResumeProfile, Role
 from app.parsing.seniority import infer_seniority, is_internship, seniority_from_title
 from app.parsing.skills import find_known_skills, normalize_skills
@@ -48,6 +49,7 @@ short names, no soft skills, no duplicates.
 - projects: personal, academic or open-source projects (not jobs): name, a one-line \
 summary of at most 20 words, and the technologies used. At most 6.
 - headline: the candidate's current title, or their stated target title.
+- location: where the candidate lives (city and country) as written, usually in the header.
 - seniority: intern, junior, mid, senior or lead, judged from titles and \
 responsibilities; lead covers staff, principal, architect and engineering management.
 - total_years_experience: professional experience in years, excluding internships.
@@ -140,13 +142,17 @@ def build_profile(
         for p in raw.projects[:6]
         if p.name.strip()
     ]
+    location = (raw.location or "").strip() or None
     profile = ResumeProfile(
         headline=(raw.headline or "").strip() or (roles[0].title if roles else None),
+        location=location,
+        country=country_code(location),
         # An explicit level in the latest title ("Senior ...", "Staff ...") beats the
         # model's judgment; small models in particular over-rate seniority.
         seniority=(seniority_from_title(roles[0].title) if roles else None) or raw.seniority,
         total_years_experience=years,
-        skills=normalize_skills(raw.skills),
+        # Skills used in projects are the candidate's skills too; matching reads this list.
+        skills=normalize_skills([*raw.skills, *(s for p in projects for s in p.skills)]),
         roles=roles,
         education=education,
         projects=projects,

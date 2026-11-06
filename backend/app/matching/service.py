@@ -210,7 +210,7 @@ async def _compute(
                 job=JobOut(
                     id=job.id, title=job.title, company=job.company, location=job.location,
                     url=job.url, source=job.source, salary=job.salary,
-                    seniority=job.seniority, posted_at=job.posted_at,
+                    seniority=job.seniority, posted_at=job.posted_at, regions=job.regions,
                 ),
                 score=judged.score if judged else round(s.hybrid * 100),
                 reason=judged.reason if judged else rule_reason(s, len(job.skills)),

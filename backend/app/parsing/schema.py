@@ -32,6 +32,8 @@ class Project(BaseModel):
 
 class ResumeProfile(BaseModel):
     headline: str | None = None  # current or target title
+    location: str | None = None  # as written, e.g. "Pune, India"
+    country: str | None = None  # ISO code derived from location, e.g. "IN"
     seniority: Seniority
     total_years_experience: float = Field(ge=0)
     skills: list[str]
@@ -78,6 +80,7 @@ class LLMProject(BaseModel):
 
 class LLMResume(BaseModel):
     headline: str | None = Field(None, description="the candidate's current or target title")
+    location: str | None = Field(None, description="where the candidate lives, as written")
     seniority: Seniority
     total_years_experience: float | None = Field(None, ge=0, le=60)
     skills: list[str] = Field(description="technical skills, tools, languages, frameworks")

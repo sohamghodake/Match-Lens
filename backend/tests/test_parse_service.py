@@ -188,3 +188,18 @@ def test_explicit_title_level_beats_llm_seniority() -> None:
     roles = [LLMRole(title="Data Scientist", company="Acme", start="2020", end="Present")]
     profile, _ = build_profile(llm_reply(seniority="mid", roles=roles), today=TODAY)
     assert profile.seniority == "mid"
+
+
+def test_project_skills_count_as_skills_and_location_gives_country() -> None:
+    from app.parsing.schema import LLMProject
+    from app.parsing.service import build_profile
+
+    reply = llm_reply(
+        skills=["Python"],
+        location="Pune, Maharashtra, India",
+        projects=[LLMProject(name="Ironwork", summary="Job scheduler", skills=["Go", "Raft"])],
+    )
+    profile, _ = build_profile(reply, today=TODAY)
+    assert profile.skills == ["Python", "Go", "Raft"]
+    assert profile.projects[0].skills == ["Go", "Raft"]
+    assert (profile.location, profile.country) == ("Pune, Maharashtra, India", "IN")

@@ -248,3 +248,14 @@ def _lines_with_offsets(text: str) -> Iterable[tuple[int, str]]:
     for line in text.splitlines(keepends=True):
         yield offset, line
         offset += len(line)
+
+
+def search_names(canonical: str) -> list[str]:
+    """A skill's name and aliases that are safe to look for in free text: not everyday
+    words ("rest", "next") and not two-letter abbreviations ("js", "ml")."""
+    names = (canonical, *CANONICAL_SKILLS.get(canonical, ()))
+    return [
+        n
+        for n in names
+        if n.lower() not in _UNSEARCHABLE_ALIASES and (len(n) > 2 or not n.isalpha())
+    ]

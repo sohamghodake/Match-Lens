@@ -17,6 +17,13 @@ from ingestion.normalize import NormalizedJob, dedupe_key
 Kind = Literal["new", "changed", "unchanged", "duplicate"]
 
 
+def derived_differs(stored: "StoredJob", job: NormalizedJob) -> tuple[bool, bool]:
+    """(any derived field differs, the ones in the embedding text differ). Derived fields
+    come from rules that improve over time; an unchanged posting should still get them."""
+    embedded = stored.skills != job.skills or stored.seniority != job.seniority
+    return embedded or stored.regions != job.regions, embedded
+
+
 @dataclass(frozen=True)
 class StoredJob:
     id: int
@@ -26,6 +33,9 @@ class StoredJob:
     company: str
     title: str
     is_active: bool
+    skills: list[str]
+    seniority: str | None
+    regions: list[str]
 
 
 class Deduper:
@@ -36,6 +46,9 @@ class Deduper:
             j.content_hash: (j.source, j.source_id) for j in active
         }
         self.keys: dict[str, str] = {dedupe_key(j.company, j.title): j.source for j in active}
+
+    def stored(self, job: NormalizedJob) -> StoredJob | None:
+        return self.by_source_id.get((job.source, job.source_id))
 
     def classify(self, job: NormalizedJob) -> tuple[Kind, int | None]:
         stored = self.by_source_id.get((job.source, job.source_id))

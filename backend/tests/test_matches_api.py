@@ -212,3 +212,97 @@ async def test_concurrent_identical_requests_make_one_llm_call(
     first, second = await asyncio.gather(one(), one())
     assert llm.calls == 1
     assert sorted([first.cached, second.cached]) == [False, True]
+
+
+async def test_country_filter(
+    client: httpx.AsyncClient, seeded: Resume, db_session: AsyncSession
+) -> None:
+    db_session.add_all(
+        [
+            job(20, [1.0, 0.05], title="Remote India Role", regions=["IN"]),
+            job(21, [1.0, 0.06], title="Worldwide Role", regions=["WORLDWIDE"]),
+            job(22, [1.0, 0.07], title="APAC Role", regions=["APAC"]),
+            job(23, [1.0, 0.08], title="US Only Role", regions=["US"]),
+        ]
+    )
+    seeded.parsed = {**seeded.parsed, "country": "IN"}
+    await db_session.flush()
+
+    async with client:
+        default = (await client.get(f"/resumes/{seeded.id}/matches")).json()
+        strict = (
+            await client.get(f"/resumes/{seeded.id}/matches?include_unspecified=false")
+        ).json()
+        anywhere = (await client.get(f"/resumes/{seeded.id}/matches?country=ANY")).json()
+        bad = await client.get(f"/resumes/{seeded.id}/matches?country=XX")
+
+    # No country given: the resume's country applies; jobs that don't say where stay in.
+    assert default["filters"]["country"] == "IN"
+    assert "US Only Role" not in titles(default)
+    assert {"Remote India Role", "Worldwide Role", "APAC Role"} <= set(titles(default))
+    assert "Backend Engineer 1" in titles(default)  # unspecified
+    assert set(titles(strict)) == {"Remote India Role", "Worldwide Role", "APAC Role"}
+    assert anywhere["filters"]["country"] is None and "US Only Role" in titles(anywhere)
+    assert bad.status_code == 422
+
+
+async def test_countries_endpoint(client: httpx.AsyncClient) -> None:
+    async with client:
+        countries = (await client.get("/locations/countries")).json()
+    assert {"code": "IN", "name": "India"} in countries
+    names = [c["name"] for c in countries]
+    assert names == sorted(names)
+
+
+# ── POST /ats ─────────────────────────────────────────────────────────────────────
+
+
+class FakeJDLLM(FakeLLM):
+    async def structured[T: BaseModel](self, prompt: str, schema: type[T], **_: object) -> T:
+        from app.ats.analyze import JDAnalysis
+
+        return JDAnalysis(  # type: ignore[return-value]
+            title="Backend Engineer", seniority="junior", required=["Python", "Kafka"]
+        )
+
+
+async def test_ats_with_pasted_description_and_with_job_id(
+    settings: Settings, db_session: AsyncSession, seeded: Resume
+) -> None:
+    app = create_app(settings, run_sweeper=False)
+
+    async def session_override() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = session_override
+    app.dependency_overrides[get_llm_client] = lambda: FakeJDLLM()
+    seeded.text = "Experience\nBuilt things in Python.\nEducation\nBSc\nSkills\nPython"
+    seeded.meta = {"file": {"has_email": True, "has_phone": True, "columns": 1, "tables": 0,
+                            "pages": 1, "chars": 3000}}  # fmt: skip
+    await db_session.flush()
+    some_job = await db_session.scalar(select(Job).where(Job.source_id == "test:1"))
+    assert some_job is not None
+
+    description = "Backend Engineer. We need Python and Kafka. " * 3
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        pasted = await c.post(
+            "/ats", json={"resume_id": str(seeded.id), "job_description": description}
+        )
+        by_job = await c.post("/ats", json={"resume_id": str(seeded.id), "job_id": some_job.id})
+        both = await c.post(
+            "/ats",
+            json={"resume_id": str(seeded.id), "job_description": description, "job_id": 1},
+        )
+        neither = await c.post("/ats", json={"resume_id": str(seeded.id)})
+        no_job = await c.post("/ats", json={"resume_id": str(seeded.id), "job_id": 999_999})
+
+    assert pasted.status_code == 200 and by_job.status_code == 200
+    report = pasted.json()
+    assert report["analysis_method"] == "llm"
+    assert [(k["keyword"], k["status"]) for k in report["keywords"]] == [
+        ("Python", "found"),
+        ("Kafka", "missing"),
+    ]
+    lost = sum(d["points"] for p in report["parts"] for d in p["deductions"])
+    assert round(100 - lost, 1) == report["score"]  # every lost point is explained
+    assert (both.status_code, neither.status_code, no_job.status_code) == (422, 422, 404)
