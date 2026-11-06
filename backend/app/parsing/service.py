@@ -20,7 +20,7 @@ from app.parsing.dates import (
     parse_date,
     total_years,
 )
-from app.parsing.schema import Education, LLMResume, ResumeProfile, Role
+from app.parsing.schema import Education, LLMResume, Project, ResumeProfile, Role
 from app.parsing.seniority import infer_seniority, is_internship, seniority_from_title
 from app.parsing.skills import find_known_skills, normalize_skills
 
@@ -45,6 +45,8 @@ null only when the resume gives no date at all.
 methods mentioned anywhere (skills section and experience bullets). One skill per item, \
 short names, no soft skills, no duplicates.
 - education: institution, degree, field and graduation year.
+- projects: personal, academic or open-source projects (not jobs): name, a one-line \
+summary of at most 20 words, and the technologies used. At most 6.
 - headline: the candidate's current title, or their stated target title.
 - seniority: intern, junior, mid, senior or lead, judged from titles and \
 responsibilities; lead covers staff, principal, architect and engineering management.
@@ -129,6 +131,15 @@ def build_profile(
         for e in raw.education
         if e.institution.strip()
     ]
+    projects = [
+        Project(
+            name=p.name.strip(),
+            summary=(p.summary or "").strip() or None,
+            skills=normalize_skills(p.skills),
+        )
+        for p in raw.projects[:6]
+        if p.name.strip()
+    ]
     profile = ResumeProfile(
         headline=(raw.headline or "").strip() or (roles[0].title if roles else None),
         # An explicit level in the latest title ("Senior ...", "Staff ...") beats the
@@ -138,6 +149,7 @@ def build_profile(
         skills=normalize_skills(raw.skills),
         roles=roles,
         education=education,
+        projects=projects,
     )
     return profile, warnings
 
@@ -173,6 +185,13 @@ def embedding_text(profile: ResumeProfile) -> str:
     if profile.roles:
         parts.append(
             "Experience: " + "; ".join(f"{r.title} at {r.company}" for r in profile.roles[:8])
+        )
+    if profile.projects:
+        parts.append(
+            "Projects: "
+            + "; ".join(
+                f"{p.name}: {p.summary}" if p.summary else p.name for p in profile.projects[:4]
+            )
         )
     return ". ".join(parts)
 

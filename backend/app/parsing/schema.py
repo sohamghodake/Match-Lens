@@ -24,6 +24,12 @@ class Education(BaseModel):
     end: str | None = None  # graduation year ("YYYY") when given
 
 
+class Project(BaseModel):
+    name: str
+    summary: str | None = None
+    skills: list[str] = []
+
+
 class ResumeProfile(BaseModel):
     headline: str | None = None  # current or target title
     seniority: Seniority
@@ -31,6 +37,8 @@ class ResumeProfile(BaseModel):
     skills: list[str]
     roles: list[Role]  # most recent first
     education: list[Education]
+    # Personal, academic or open-source work: for students, often the strongest signal.
+    projects: list[Project] = []
 
 
 # ── What the LLM is asked to fill in. Deliberately loose (free-text dates, optional
@@ -62,6 +70,12 @@ SENIORITY_SYNONYMS: dict[str, Seniority] = {
 }  # fmt: skip
 
 
+class LLMProject(BaseModel):
+    name: str
+    summary: str | None = Field(None, description="one line, at most 20 words")
+    skills: list[str] = Field(default_factory=list, description="technologies used")
+
+
 class LLMResume(BaseModel):
     headline: str | None = Field(None, description="the candidate's current or target title")
     seniority: Seniority
@@ -69,6 +83,7 @@ class LLMResume(BaseModel):
     skills: list[str] = Field(description="technical skills, tools, languages, frameworks")
     roles: list[LLMRole] = Field(description="every job and internship, most recent first")
     education: list[LLMEducation] = []
+    projects: list[LLMProject] = []
 
     @field_validator("seniority", mode="before")
     @classmethod

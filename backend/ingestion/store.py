@@ -110,3 +110,24 @@ async def deactivate_stale(session: AsyncSession, source: str, now: datetime) ->
         .values(is_active=False)
     )
     return result.rowcount or 0
+
+
+async def deactivate_rejected(
+    session: AsyncSession, keys: Sequence[tuple[str, str]]
+) -> dict[str, int]:
+    """Jobs still in a feed that the filters now reject (e.g. after a filter change) stop
+    being shown, rather than lingering until they expire."""
+    counts: dict[str, int] = {}
+    by_source: dict[str, list[str]] = {}
+    for source, source_id in keys:
+        by_source.setdefault(source, []).append(source_id)
+    for source, ids in by_source.items():
+        for start in range(0, len(ids), INSERT_BATCH):
+            result = await session.execute(
+                update(Job)
+                .where(Job.source == source, Job.source_id.in_(ids[start : start + INSERT_BATCH]))
+                .where(Job.is_active)
+                .values(is_active=False)
+            )
+            counts[source] = counts.get(source, 0) + (result.rowcount or 0)
+    return counts

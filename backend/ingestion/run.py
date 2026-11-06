@@ -147,6 +147,7 @@ async def run(
     # Parse and normalize.
     complete_scopes: list[tuple[str, str]] = []
     kept: list[NormalizedJob] = []
+    rejected: list[tuple[str, str]] = []  # (source, source_id) the filters now turn away
     for source, page in pages:
         st = stats[source.name]
         if isinstance(page, Exception):
@@ -174,6 +175,7 @@ async def run(
                 result = "stale"  # rolling feeds keep old posts; don't store them
             if isinstance(result, str):
                 st.filtered[result] = st.filtered.get(result, 0) + 1
+                rejected.append((raw.source, raw.source_id))
             else:
                 kept.append(result)
                 st.kept += 1
@@ -227,6 +229,8 @@ async def run(
             now,
         )
         await store.touch_jobs(session, unchanged_ids, now)
+        for source_name, count in (await store.deactivate_rejected(session, rejected)).items():
+            stats[source_name].deactivated += count
         for source_name, scope in complete_scopes:
             stats[source_name].deactivated += await store.deactivate_unseen(
                 session, source_name, scope, now

@@ -80,11 +80,13 @@ class LLMClient:
         system: str | None = None,
         fast: bool = False,
         model: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> T:
         """Ask for a JSON object matching `schema`; return it validated."""
         result = await self.structured_detailed(
-            prompt, schema, system=system, fast=fast, model=model
-        )
+            prompt, schema, system=system, fast=fast, model=model,
+            reasoning_effort=reasoning_effort,
+        )  # fmt: skip
         return result.value
 
     async def structured_detailed[T: BaseModel](
@@ -95,8 +97,14 @@ class LLMClient:
         system: str | None = None,
         fast: bool = False,
         model: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> StructuredResult[T]:
-        """Like `structured`, plus the attempt count, latency and token usage."""
+        """Like `structured`, plus the attempt count, latency and token usage.
+
+        `reasoning_effort` ("low" / "medium" / "high") is sent only when given: reasoning
+        models such as gpt-oss accept it, and "low" cuts their hidden thinking tokens,
+        which count against per-minute token limits.
+        """
         model_name = model or (self.model_fast if fast else self.model)
         messages: list[dict[str, str]] = [
             {"role": "system", "content": _system_prompt(system, schema)},
@@ -108,7 +116,7 @@ class LLMClient:
         last_error = ""
 
         for attempt in (1, 2):
-            content, usage = await self._complete(model_name, messages)
+            content, usage = await self._complete(model_name, messages, reasoning_effort)
             if usage is not None:
                 usage_seen = True
                 prompt_tokens += usage.prompt_tokens or 0
@@ -146,12 +154,16 @@ class LLMClient:
 
         raise LLMError(f"{model_name} returned invalid output twice; last error: {last_error}")
 
-    async def _complete(self, model: str, messages: list[dict[str, str]]) -> tuple[str, Any]:
+    async def _complete(
+        self, model: str, messages: list[dict[str, str]], reasoning_effort: str | None = None
+    ) -> tuple[str, Any]:
+        extra = {"reasoning_effort": reasoning_effort} if reasoning_effort else None
         try:
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=messages,  # type: ignore[arg-type]
                 response_format={"type": "json_object"},
+                extra_body=extra,
             )
         except openai.APIStatusError as exc:
             # e.g. 401 bad key, 404 unknown model, 429 rate limit / insufficient_quota.

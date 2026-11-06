@@ -33,5 +33,9 @@ PRESETS: dict[str, ProviderPreset] = {
             "qwen2.5:3b",
         ),
         ProviderPreset("ollama-cloud", "https://ollama.com/v1", "OLLAMA_API_KEY", "gpt-oss:120b"),
+        # Free tier: rate-limited, no card on file, so it can't bill.
+        ProviderPreset(
+            "groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b"
+        ),
     )
 }

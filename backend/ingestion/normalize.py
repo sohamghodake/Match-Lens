@@ -29,6 +29,8 @@ TECH_TITLE = re.compile(
     re.I,
 )
 NOT_TECH_TITLE = re.compile(
+    # Gig work that mentions AI but isn't an engineering job.
+    r"\b(annotat(or|ion)|data label(l)?ing|rater|content reviewer|ai trainer|ai tutor)\b|"
     r"\b(sales|account (executive|manager)|business development|recruit(er|ing)|talent|"
     r"marketing|counsel|attorney|legal|paralegal|accountant|accounting|payroll|tax|"
     r"finance|financial|customer success|people partner|hr|human resources|copywriter|"
@@ -63,6 +65,28 @@ class NormalizedJob:
     posted_at: datetime | None
     content_hash: str
     dedupe_key: str  # company + title, for spotting one job posted on two sources
+
+
+# UTF-8 text that was decoded as Latin-1 / Windows-1252 somewhere upstream ("â\x80\x99"
+# instead of "’"); Remote OK's feed has some.
+_MOJIBAKE = re.compile(
+    "[\u00c2-\u00f4][\u0080-\u00bf\u0152\u0153\u0160\u0161\u0178\u017d"
+    "\u017e\u0192\u02c6\u02dc\u2013\u2014\u2018-\u201e\u2020-\u2022"
+    "\u2026\u2030\u2039\u203a\u20ac\u2122]{1,3}"
+)
+
+
+def fix_mojibake(text: str) -> str:
+    def repair(match: re.Match[str]) -> str:
+        chunk = match.group(0)
+        for encoding in ("latin-1", "cp1252"):
+            try:
+                return chunk.encode(encoding).decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                continue
+        return chunk
+
+    return _MOJIBAKE.sub(repair, text) if text else text
 
 
 def html_to_text(raw: str) -> str:
@@ -117,6 +141,9 @@ def content_hash(title: str, company: str, location: str | None, description: st
 
 
 def normalize(raw: RawJob) -> NormalizedJob | SkipReason:
+    raw.title, raw.company = fix_mojibake(raw.title), fix_mojibake(raw.company)
+    raw.location = fix_mojibake(raw.location) if raw.location else raw.location
+    raw.description_html = fix_mojibake(raw.description_html)
     title = " ".join(raw.title.split())
     if not is_tech_role(title):
         return "not_tech"

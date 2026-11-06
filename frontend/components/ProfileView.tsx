@@ -57,6 +57,12 @@ export function ProfileView({ resume }: { resume: ResumeOut }) {
             {formatYears(profile.total_years_experience)}
           </span>
         </div>
+        <Link
+          href={`/resume/${resume.id}/matches`}
+          className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Find matching jobs →
+        </Link>
       </header>
 
       {resume.warnings.length > 0 && (
@@ -98,6 +104,24 @@ export function ProfileView({ resume }: { resume: ResumeOut }) {
               </li>
             ))}
           </ol>
+        </Section>
+      )}
+
+      {(profile.projects?.length ?? 0) > 0 && (
+        <Section title="Projects">
+          <ul className="space-y-3">
+            {profile.projects?.map((project, i) => (
+              <li key={`${project.name}-${i}`}>
+                <p className="font-medium">{project.name}</p>
+                {project.summary && (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{project.summary}</p>
+                )}
+                {project.skills.length > 0 && (
+                  <p className="text-xs text-zinc-500">{project.skills.join(" · ")}</p>
+                )}
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
 

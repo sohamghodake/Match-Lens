@@ -38,6 +38,12 @@ export type Education = {
   end: string | null;
 };
 
+export type Project = {
+  name: string;
+  summary: string | null;
+  skills: string[];
+};
+
 export type ResumeProfile = {
   headline: string | null;
   seniority: Seniority;
@@ -45,6 +51,7 @@ export type ResumeProfile = {
   skills: string[];
   roles: Role[];
   education: Education[];
+  projects?: Project[]; // absent on resumes parsed before projects were added
 };
 
 export type ResumeOut = {
@@ -64,6 +71,48 @@ export type ResumeOut = {
     has_phone: boolean;
     has_linkedin: boolean;
   };
+};
+
+export type JobSource = "remotive" | "remoteok" | "greenhouse";
+
+export type Match = {
+  job: {
+    id: number;
+    title: string;
+    company: string;
+    location: string | null;
+    url: string;
+    source: JobSource | string;
+    salary: string | null;
+    seniority: Seniority | null;
+    posted_at: string | null;
+  };
+  score: number;
+  reason: string;
+  matched_skills: string[];
+  missing_skills: string[];
+  similarity: number;
+  hybrid: number;
+  llm_score: number | null;
+};
+
+export type MatchFilters = {
+  posted_within_days: number | null;
+  seniority: Seniority[] | null;
+};
+
+export type MatchesOut = {
+  resume_id: string;
+  generated_at: string;
+  cached: boolean;
+  reranked: boolean;
+  model: string | null;
+  note: string | null;
+  candidates: number;
+  filters: MatchFilters;
+  timings: { retrieve_ms: number; score_ms: number; rerank_ms: number; total_ms: number };
+  tokens: number | null;
+  matches: Match[];
 };
 
 export class ApiError extends Error {
@@ -120,6 +169,17 @@ export const api = {
   getResume: (id: string) => request<ResumeOut>(`/resumes/${encodeURIComponent(id)}`),
   deleteResume: (id: string) =>
     request<void>(`/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  getMatches: (id: string, filters: Partial<MatchFilters> = {}, refresh = false) => {
+    const params = new URLSearchParams();
+    if (filters.posted_within_days) params.set("posted_within_days", String(filters.posted_within_days));
+    for (const level of filters.seniority ?? []) params.append("seniority", level);
+    if (refresh) params.set("refresh", "true");
+    const query = params.size ? `?${params}` : "";
+    // An LLM call, possibly waiting out a free-tier rate limit.
+    return request<MatchesOut>(`/resumes/${encodeURIComponent(id)}/matches${query}`, {
+      timeoutMs: 120_000,
+    });
+  },
 };
 
 /** A sentence for the user, from any error thrown by `api`. */

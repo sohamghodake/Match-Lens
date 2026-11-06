@@ -9,7 +9,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app import __version__
-from app.api import health, resumes
+from app.api import health, matches, resumes
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.retention import sweep_forever
@@ -65,6 +65,7 @@ def create_app(settings: Settings | None = None, *, run_sweeper: bool = True) ->
     )
     app.include_router(health.router)
     app.include_router(resumes.router)
+    app.include_router(matches.router)
     return app
 
 

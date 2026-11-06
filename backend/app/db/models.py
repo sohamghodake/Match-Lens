@@ -7,6 +7,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    ForeignKey,
     Identity,
     Index,
     Integer,
@@ -122,3 +123,19 @@ class IngestionRun(Base):
     )
     # Per-source counts: {"greenhouse": {"fetched": 2100, "inserted": 40, ...}}.
     sources: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=sql_text("'{}'::jsonb"))
+
+
+class MatchResult(Base):
+    """Cached matches for one resume and filter set. Deleted with the resume."""
+
+    __tablename__ = "match_results"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    resume_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("resumes.id", ondelete="CASCADE")
+    )
+    filters_key: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+    __table_args__ = (Index("ix_match_results_lookup", "resume_id", "filters_key", "created_at"),)

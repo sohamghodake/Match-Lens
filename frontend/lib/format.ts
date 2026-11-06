@@ -25,3 +25,22 @@ export function formatTimeUntil(iso: string, now: number = Date.now()): string {
   const hours = Math.round(minutes / 60);
   return `in ${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
+
+/** "today", "3 days ago", "2 months ago" */
+export function formatPostedAgo(iso: string | null, now: number = Date.now()): string | null {
+  if (!iso) return null;
+  const days = Math.floor((now - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  return `${months} ${months === 1 ? "month" : "months"} ago`;
+}
+
+/** How each source must be credited (Remotive and Remote OK require naming them). */
+export function sourceLabel(source: string): string {
+  return (
+    { remotive: "Remotive", remoteok: "Remote OK", greenhouse: "Greenhouse" }[source] ??
+    source
+  );
+}

@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     ingest_llm_skills: bool = False
     ingest_llm_max_jobs: int = 25
 
+    # Matching. Re-ranking sends the top candidates to the LLM in one compact call.
+    match_candidates: int = 100  # stage 1: nearest jobs by vector similarity
+    match_rerank_top: int = 20  # stage 3: how many the LLM scores (and the API returns)
+    match_cache_hours: float = 12
+    # "low" keeps gpt-oss's hidden reasoning small (it counts against tokens/minute).
+    # Leave empty for models that don't accept the parameter.
+    match_reasoning_effort: str | None = "low"
+    match_rerank_fast: bool = False  # use LLM_MODEL_FAST for re-ranking
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
@@ -75,7 +84,7 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: str) -> str:
         return to_asyncpg_url(value)
 
-    @field_validator("llm_model_fast", "embed_model", mode="before")
+    @field_validator("llm_model_fast", "embed_model", "match_reasoning_effort", mode="before")
     @classmethod
     def _blank_is_none(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
