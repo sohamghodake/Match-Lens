@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import Settings, get_settings, to_asyncpg_url
 
-APP_ENV_PREFIXES = ("LLM_", "EMBED_", "CORS_ORIGINS", "APP_ENV", "LOG_LEVEL")
+APP_ENV_PREFIXES = (
+    "LLM_", "EMBED_", "MATCH_", "INGEST_", "EVAL_TOOLS", "CORS_ORIGINS", "APP_ENV", "LOG_LEVEL",
+)  # fmt: skip
 ALEMBIC_INI = Path(__file__).parents[1] / "alembic.ini"
 
 

@@ -35,6 +35,8 @@ services:
       # Without a .env, point at the host's Ollama (localhost would be this container).
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       OLLAMA_LOCAL_BASE_URL: http://host.docker.internal:11434/v1
+      # Local labeling tools (/label); never set in production.
+      EVAL_TOOLS: "true"
     command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "${BACKEND_PORT:-8100}:8000"

@@ -46,7 +46,8 @@ CORE_TECH_TITLE = re.compile(
     re.I,
 )
 REMOTE_WORDS = re.compile(
-    r"\b(remote|distributed|anywhere|work from home|wfh|home[- ]based|virtual)\b", re.I
+    r"\b(remote|distributed|anywhere|worldwide|global|work from home|wfh|home[- ]based|virtual)\b",
+    re.I,
 )
 
 

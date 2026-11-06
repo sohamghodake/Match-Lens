@@ -1,0 +1,32 @@
+{
+ "0-legal-notice": "fixture",
+ "job-count": 2,
+ "jobs": [
+  {
+   "id": 5001,
+   "url": "https://example.com/remotive/5001",
+   "title": "Python Developer",
+   "company_name": "Fixture Remote Co",
+   "category": "Software Development",
+   "candidate_required_location": "Worldwide",
+   "publication_date": "2026-11-01T00:00:00",
+   "salary": "$90k - $120k",
+   "description": "<p>Python, FastAPI, PostgreSQL and Docker. Remote worldwide.</p>",
+   "tags": [
+    "python"
+   ]
+  },
+  {
+   "id": 5002,
+   "url": "https://example.com/remotive/5002",
+   "title": "Data Analyst",
+   "company_name": "Fixture Remote Co",
+   "category": "Data",
+   "candidate_required_location": "USA",
+   "publication_date": "2026-11-02T00:00:00",
+   "salary": "",
+   "description": "<p>SQL, Tableau and Python for analytics.</p>",
+   "tags": []
+  }
+ ]
+}

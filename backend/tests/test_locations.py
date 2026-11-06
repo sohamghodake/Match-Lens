@@ -54,3 +54,12 @@ def test_country_code_from_resume_location() -> None:
 )
 def test_job_places(location: str | None, title: str, expected: list[str]) -> None:
     assert job_places(location, title) == expected
+
+
+def test_worldwide_location_counts_as_remote() -> None:
+    from ingestion.models import RawJob
+    from ingestion.normalize import is_remote
+
+    job = RawJob(source="greenhouse", source_id="x:1", url="u", title="Engineer", company="X",
+                 location="Worldwide", description_html="<p>x</p>", posted_at=None)  # fmt: skip
+    assert is_remote(job)

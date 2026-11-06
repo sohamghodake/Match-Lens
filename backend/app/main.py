@@ -60,13 +60,17 @@ def create_app(settings: Settings | None = None, *, run_sweeper: bool = True) ->
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type"],
     )
     app.include_router(health.router)
     app.include_router(resumes.router)
     app.include_router(matches.router)
     app.include_router(ats.router)
+    if settings.eval_tools:
+        from eval.api import router as eval_router  # local labeling tools only
+
+        app.include_router(eval_router)
     return app
 
 

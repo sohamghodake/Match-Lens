@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     match_reasoning_effort: str | None = "low"
     match_rerank_fast: bool = False  # use LLM_MODEL_FAST for re-ranking
 
+    # Local labeling tools (/eval endpoints, /label pages). Never enable in production:
+    # they read and write files on the server.
+    eval_tools: bool = False
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

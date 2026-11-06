@@ -26,7 +26,7 @@ flowchart LR
 | 3 · Job ingestion | ✅ done |
 | 4 · Matching | ✅ done |
 | 5 · ATS scoring | ✅ done |
-| 6 · Evaluation + tests | next |
+| 6 · Evaluation + tests | 🟡 tools and tests done; labeling in progress |
 | 7 · Deployment + demo polish | |
 
 ## Run it locally
@@ -50,6 +50,30 @@ docker compose exec frontend sh -c 'npm run lint && npm run typecheck'
 ```
 
 `RUN_SLOW=1 pytest` also loads the local embedding model.
+
+Frontend unit tests (Jest + React Testing Library) and the end-to-end test (Playwright: upload → matches → ATS check):
+
+```bash
+docker compose exec frontend npm test
+cd frontend && npx playwright test        # against the running stack; E2E_BASE_URL overrides
+```
+
+CI runs the end-to-end test against a real API and database seeded from synthetic feeds (`backend/eval/fixtures/`), with the LLM unreachable on purpose, so every no-LLM fallback is exercised without API keys.
+
+## Evaluation (Phase 6)
+
+Labeling happens locally at http://localhost:3100/label (the backend's `EVAL_TOOLS=true`, set by docker compose and never in production). Everything personal stays in `backend/eval/private/`, which git ignores.
+
+1. **Resume labels.** Put PDF/DOCX resumes in `backend/eval/private/resumes/`. On each one, click **Pre-fill from parser**, correct every field against the text shown beside it, then **Save as verified**. Target: 30–50.
+2. **Relevance pool.** For every labeled resume, collect each ranking system's top 10 (vector only, hybrid, hybrid + re-rank with each model):
+   ```bash
+   docker compose exec backend python -m eval.build_pool
+   ```
+3. **Judge relevance** at `/label/relevance`: "Not a fit / Partly / Good fit" for each pooled job. Jobs are shuffled and show no scores or system names.
+4. **Report**, which also writes `backend/eval/results.md`:
+   ```bash
+   docker compose exec backend python -m eval.report --parse-models openai/gpt-oss-120b openai/gpt-oss-20b --write
+   ```
 
 ## Job ingestion
 
@@ -180,6 +204,15 @@ Each line reports whether the JSON validated, whether the repair retry was neede
 - `/health` never touches the database. Render polls it, and a query on every poll would keep Neon's free compute awake around the clock (100 compute-hours a month is about 3 hours a day). `/health/db` is the deep check: database reachable, pgvector version, current migration.
 - One backend Dockerfile serves both compose (dev dependencies, bind mount, `--reload`) and Render (`$PORT`, non-root user).
 
+**Phase 6: evaluation and tests**
+
+- **Pooled relevance judgments,** the standard way to compare rankers: each system's top 10 is merged into one pool per resume, every pooled job is judged once, and each system's precision@10 comes from the same judgments. The rankings and job details are frozen into `pool.json`, so results don't drift as jobs open and close.
+- **Blind judging.** The relevance page shuffles jobs deterministically per resume and shows no scores, ranks or system names, so the judge can't favor a system. Judgments are graded 0/1/2, and the report gives precision@10 both strictly ("good fit") and leniently ("good or partly").
+- **Pre-filled labels are a starting point, not the truth.** The parser's answer fills the form, but a label counts only once a person saves it as verified, and malformed dates block verification. Pre-filling saves time; the trade-off is anchoring on the parser's answer, so the page says to check every field.
+- **Parses are cached per file and model,** so re-running reports doesn't spend free-tier requests twice.
+- **The labeling API is local-only.** It's mounted only when `EVAL_TOOLS=true`, rejects any path outside its folders (traversal is tested), and keeps the generated sample labels read-only.
+- **CI tests the no-LLM path end to end.** A rehearsal of that job caught a stale-image problem before it could reach CI, and the synthetic feeds caught that "Worldwide" locations were being dropped as not remote.
+
 **Phase 5: ATS scoring**
 
 - **Every point lost is itemized.** A part's score is its maximum minus its deductions, and each deduction carries its reason and a fix. A test checks across 300 random inputs that the deductions add up exactly to the points lost. Per-keyword rounding is corrected so that missing every keyword scores exactly 0, not 0.1.
@@ -253,10 +286,10 @@ backend/
   app/matching/     retrieve (pgvector), score (hybrid), rerank (LLM), service, schema
   app/ats/          job-description analysis and explainable scoring
   ingestion/        scrapers/ (remotive, remoteok, greenhouse), normalize, dedupe, store, run
-  eval/             sample resumes + labels, parser evaluation, job-skill comparison
+  eval/             samples + labels, labeling API, pool builder, report, fixtures (CI feeds)
   scripts/          smoke_llm, provider_info, match_bench, reparse_resumes
   tests/
-frontend/           Next.js 16 app (app/, components/, lib/api.ts)
+frontend/           Next.js 16 app (app/, components/, lib/), __tests__/ (Jest), e2e/ (Playwright)
 .github/workflows/  ci.yml, ingest.yml (daily cron)
 docker-compose.yml  db, backend, frontend, optional ollama (--profile ollama)
 ```

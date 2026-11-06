@@ -1,0 +1,114 @@
+{
+ "jobs": [
+  {
+   "id": 900,
+   "title": "Backend Engineer, Payments",
+   "absolute_url": "https://example.com/jobs/900",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote - US"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Build payment APIs in Python and FastAPI on PostgreSQL. Experience with Kafka, Docker and AWS. 3+ years of professional experience.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Build payment APIs in Python and FastAPI on PostgreSQL. Experience with Kafka, Docker and AWS. 3+ years of professional experience.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 901,
+   "title": "Senior Backend Engineer, Ledger",
+   "absolute_url": "https://example.com/jobs/901",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote, Canada; Remote, United States"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Own ledger services in Go and gRPC. PostgreSQL, Redis, Kubernetes and Terraform. 6+ years of experience.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Own ledger services in Go and gRPC. PostgreSQL, Redis, Kubernetes and Terraform. 6+ years of experience.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 902,
+   "title": "Software Engineer, Platform",
+   "absolute_url": "https://example.com/jobs/902",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Worldwide"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Python services, Docker, Kubernetes and CI/CD with GitHub Actions. You will work with PostgreSQL and AWS.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Python services, Docker, Kubernetes and CI/CD with GitHub Actions. You will work with PostgreSQL and AWS.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 903,
+   "title": "Data Engineer",
+   "absolute_url": "https://example.com/jobs/903",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote - India"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Build pipelines with Apache Airflow, Spark and SQL. Python and dbt; BigQuery or Snowflake.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Build pipelines with Apache Airflow, Spark and SQL. Python and dbt; BigQuery or Snowflake.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 904,
+   "title": "Machine Learning Engineer",
+   "absolute_url": "https://example.com/jobs/904",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Europe"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Train and serve models with PyTorch and scikit-learn. Python, Docker, MLOps on Google Cloud.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Train and serve models with PyTorch and scikit-learn. Python, Docker, MLOps on Google Cloud.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 905,
+   "title": "Frontend Engineer",
+   "absolute_url": "https://example.com/jobs/905",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote UK"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;React, TypeScript and Next.js. Tailwind CSS, Jest and Playwright for testing.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;React, TypeScript and Next.js. Tailwind CSS, Jest and Playwright for testing.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 906,
+   "title": "Junior Software Engineer",
+   "absolute_url": "https://example.com/jobs/906",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote - US"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Entry-level role writing Python and SQL. Git, REST APIs and Docker. Mentorship provided.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Entry-level role writing Python and SQL. Git, REST APIs and Docker. Mentorship provided.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 907,
+   "title": "Staff Infrastructure Engineer",
+   "absolute_url": "https://example.com/jobs/907",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote - US"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Lead the Kubernetes platform: Terraform, AWS, Prometheus, Grafana. 10+ years of experience.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Lead the Kubernetes platform: Terraform, AWS, Prometheus, Grafana. 10+ years of experience.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 908,
+   "title": "Site Reliability Engineer",
+   "absolute_url": "https://example.com/jobs/908",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Distributed"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Linux, Kubernetes, Terraform and on-call for Go and Python services. Prometheus and Datadog.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Linux, Kubernetes, Terraform and on-call for Go and Python services. Prometheus and Datadog.&lt;/li&gt;&lt;/ul&gt;"
+  },
+  {
+   "id": 909,
+   "title": "Software Engineer Intern",
+   "absolute_url": "https://example.com/jobs/909",
+   "company_name": "Fixture Labs",
+   "location": {
+    "name": "Remote - US"
+   },
+   "first_published": "2026-10-20T10:00:00+00:00",
+   "content": "&lt;p&gt;Summer internship: Python, Java or Go; data structures and algorithms; Git.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Summer internship: Python, Java or Go; data structures and algorithms; Git.&lt;/li&gt;&lt;/ul&gt;"
+  }
+ ]
+}
