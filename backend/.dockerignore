@@ -4,3 +4,5 @@
 .ruff_cache
 .env
 *.egg-info
+# Real resumes and labels (Phase 6) must never end up in an image.
+eval/private

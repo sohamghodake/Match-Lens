@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ats import score
 from app.ats.analyze import analyze
 from app.ats.schema import AtsReport, AtsRequest, JobSummary
+from app.core.ratelimit import rate_limit
 from app.db.models import Job, Resume
 from app.db.retention import resume_cutoff
 from app.db.session import get_session
@@ -17,7 +18,11 @@ from app.parsing.schema import ResumeProfile
 router = APIRouter(tags=["ats"])
 
 
-@router.post("/ats", responses={404: {}})
+@router.post(
+    "/ats",
+    responses={404: {}, 429: {}},
+    dependencies=[Depends(rate_limit("ats", "rate_limit_ats_per_hour"))],
+)
 async def ats_score(
     request: AtsRequest,
     session: Annotated[AsyncSession, Depends(get_session)],

@@ -71,6 +71,24 @@ export type ResumeOut = {
     has_phone: boolean;
     has_linkedin: boolean;
   };
+  sample: boolean; // the shared demo resume
+};
+
+export type PipelineStatus = {
+  active_jobs: number;
+  added_last_24h: number;
+  by_source: { source: string; active_jobs: number }[];
+  recent_runs: {
+    id: number;
+    started_at: string;
+    finished_at: string | null;
+    status: string;
+    fetched: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+  }[];
 };
 
 export type JobSource = "remotive" | "remoteok" | "greenhouse";
@@ -174,7 +192,8 @@ type RequestOptions = {
 };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", json, timeoutMs = 10_000 } = options;
+  // Long enough for a free-tier server to wake from sleep (about a minute).
+  const { method = "GET", json, timeoutMs = 75_000 } = options;
   const body = json === undefined ? options.body : JSON.stringify(json);
   const headers = json === undefined ? undefined : { "Content-Type": "application/json" };
   let response: Response;
@@ -208,6 +227,8 @@ export const api = {
     return request<ResumeOut>("/resumes", { method: "POST", body: form, timeoutMs: 300_000 });
   },
   getCountries: () => request<Country[]>("/locations/countries"),
+  sampleResume: () => request<ResumeOut>("/resumes/sample", { method: "POST", timeoutMs: 120_000 }),
+  pipeline: () => request<PipelineStatus>("/status/pipeline"),
   /** Exactly one of jobDescription / jobId. */
   ats: (resumeId: string, source: { jobDescription: string } | { jobId: number }) =>
     request<AtsReport>("/ats", {

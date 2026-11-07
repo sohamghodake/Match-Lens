@@ -32,5 +32,5 @@ RUN python -c "from fastembed import TextEmbedding; TextEmbedding('${EMBED_MODEL
 COPY --chown=app:app . .
 
 EXPOSE 8000
-# Render sets $PORT; locally it defaults to 8000.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+# Migrates, then serves on $PORT (Render sets it; 8000 otherwise). Compose overrides this.
+CMD ["./start.sh"]

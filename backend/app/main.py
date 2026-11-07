@@ -9,9 +9,10 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app import __version__
-from app.api import ats, health, matches, resumes
+from app.api import ats, health, matches, pipeline, resumes
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+from app.core.ratelimit import RateLimiter
 from app.db.retention import sweep_forever
 from app.db.session import get_engine
 
@@ -54,12 +55,14 @@ def create_app(settings: Settings | None = None, *, run_sweeper: bool = True) ->
 
     app = FastAPI(title="MatchLens API", version=__version__, lifespan=lifespan)
     app.state.run_sweeper = run_sweeper
+    app.state.rate_limiter = RateLimiter()
     app.dependency_overrides[get_settings] = lambda: settings
     # Added first so it sits inside CORS: the browser can then read the 413.
     app.add_middleware(RequestSizeLimit, max_bytes=MAX_REQUEST_BYTES)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type"],
     )
@@ -67,6 +70,7 @@ def create_app(settings: Settings | None = None, *, run_sweeper: bool = True) ->
     app.include_router(resumes.router)
     app.include_router(matches.router)
     app.include_router(ats.router)
+    app.include_router(pipeline.router)
     if settings.eval_tools:
         from eval.api import router as eval_router  # local labeling tools only
 

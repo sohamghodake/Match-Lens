@@ -34,6 +34,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </Link>
         </nav>
         {children}
+        <footer className="mx-auto w-full max-w-2xl px-4 pb-8 pt-4 text-xs text-zinc-500">
+          Jobs from{" "}
+          <a href="https://remotive.com" className="underline">Remotive</a>,{" "}
+          <a href="https://remoteok.com" className="underline">Remote OK</a> and company
+          Greenhouse boards; every job links to its original listing. Uploaded resumes are
+          deleted after 24 hours.{" "}
+          <a href="https://github.com/sohamghodake/Match-Lens" className="underline">Source on GitHub</a>
+        </footer>
       </body>
     </html>
   );

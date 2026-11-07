@@ -1,0 +1,34 @@
+# Render Blueprint for the MatchLens API (free plan).
+# Dashboard -> New -> Blueprint -> pick this repository. Render asks for the values marked
+# `sync: false` (secrets) when it creates the service. Full steps: docs/DEPLOY.md.
+services:
+  - type: web
+    name: matchlens-api
+    runtime: docker
+    plan: free
+    region: oregon # keep the Neon database in the same region (AWS us-west-2)
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health # liveness only; never touches the database
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: DATABASE_URL # Neon *direct* connection string (not the pooler)
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_API_KEY # Groq key (free tier)
+        sync: false
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
+      - key: LLM_MODEL_FAST
+        value: openai/gpt-oss-20b
+      - key: LLM_TIMEOUT_SECONDS
+        value: "120"
+      - key: EMBED_PROVIDER
+        value: local
+      - key: CORS_ORIGINS # your Vercel URL, e.g. https://match-lens.vercel.app
+        sync: false
+      - key: CORS_ORIGIN_REGEX # optional: Vercel preview URLs
+        sync: false

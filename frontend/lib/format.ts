@@ -44,3 +44,14 @@ export function sourceLabel(source: string): string {
     source
   );
 }
+
+/** "today at 9:57 PM", "yesterday at 9:57 PM", "3 days ago": calendar days, not 24h spans. */
+export function formatRunTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso);
+  const time = then.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((day(now) - day(then)) / 86_400_000);
+  if (days <= 0) return `today at ${time}`;
+  if (days === 1) return `yesterday at ${time}`;
+  return `${days} days ago`;
+}

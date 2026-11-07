@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     # Comma-separated list of origins allowed to call the API from a browser.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3100"]
+    # Optional regex for more origins, e.g. Vercel preview deployments:
+    # https://match-lens(-[a-z0-9-]+)?\.vercel\.app
+    cors_origin_regex: str | None = None
 
     # LLM: any OpenAI-compatible endpoint (OpenAI, local Ollama, Ollama cloud).
     llm_base_url: str = "http://localhost:11434/v1"
@@ -72,6 +75,13 @@ class Settings(BaseSettings):
     match_reasoning_effort: str | None = "low"
     match_rerank_fast: bool = False  # use LLM_MODEL_FAST for re-ranking
 
+    # Per-IP limits on the endpoints that call the LLM (requests per hour).
+    rate_limit_enabled: bool = True
+    rate_limit_uploads_per_hour: int = 10
+    rate_limit_samples_per_hour: int = 30
+    rate_limit_matches_per_hour: int = 40
+    rate_limit_ats_per_hour: int = 30
+
     # Local labeling tools (/eval endpoints, /label pages). Never enable in production:
     # they read and write files on the server.
     eval_tools: bool = False
@@ -88,7 +98,13 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: str) -> str:
         return to_asyncpg_url(value)
 
-    @field_validator("llm_model_fast", "embed_model", "match_reasoning_effort", mode="before")
+    @field_validator(
+        "llm_model_fast",
+        "embed_model",
+        "match_reasoning_effort",
+        "cors_origin_regex",
+        mode="before",
+    )
     @classmethod
     def _blank_is_none(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value

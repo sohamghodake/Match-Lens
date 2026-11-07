@@ -2,6 +2,7 @@ import {
   formatDateRange,
   formatPostedAgo,
   formatResumeDate,
+  formatRunTime,
   formatTimeUntil,
   formatYears,
   sourceLabel,
@@ -49,4 +50,11 @@ it("credits each job source by name", () => {
   expect(sourceLabel("remoteok")).toBe("Remote OK");
   expect(sourceLabel("remotive")).toBe("Remotive");
   expect(sourceLabel("greenhouse")).toBe("Greenhouse");
+});
+
+it("names calendar days for import runs", () => {
+  const now = new Date(2026, 10, 7, 9, 0); // 7 Nov, 9:00 local
+  expect(formatRunTime(new Date(2026, 10, 7, 8, 30).toISOString(), now)).toMatch(/^today at/);
+  expect(formatRunTime(new Date(2026, 10, 6, 21, 57).toISOString(), now)).toMatch(/^yesterday at/);
+  expect(formatRunTime(new Date(2026, 10, 3, 12, 0).toISOString(), now)).toBe("4 days ago");
 });

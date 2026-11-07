@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.ratelimit import rate_limit
 from app.db.models import Resume
 from app.db.retention import resume_cutoff
 from app.db.session import get_session
@@ -20,7 +21,11 @@ from app.parsing.schema import Seniority
 router = APIRouter(tags=["matches"])
 
 
-@router.get("/resumes/{resume_id}/matches", responses={404: {}})
+@router.get(
+    "/resumes/{resume_id}/matches",
+    responses={404: {}, 429: {}},
+    dependencies=[Depends(rate_limit("matches", "rate_limit_matches_per_hour"))],
+)
 async def get_matches(
     resume_id: uuid.UUID,
     session: Annotated[AsyncSession, Depends(get_session)],

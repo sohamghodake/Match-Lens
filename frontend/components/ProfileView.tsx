@@ -66,6 +66,16 @@ export function ProfileView({ resume }: { resume: ResumeOut }) {
         </Link>
       </header>
 
+      {resume.sample && (
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+          This is a shared sample resume for a fictional backend engineer.{" "}
+          <Link href="/" className="font-medium underline">
+            Upload your own
+          </Link>{" "}
+          to see your matches.
+        </p>
+      )}
+
       {resume.warnings.length > 0 && (
         <ul className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
           {resume.warnings.map((warning) => (
@@ -147,15 +157,21 @@ export function ProfileView({ resume }: { resume: ResumeOut }) {
       </Section>
 
       <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 pt-4 text-sm dark:border-zinc-800">
-        <span className="text-zinc-500">Deleted automatically {formatTimeUntil(resume.expires_at)}.</span>
-        <button
-          type="button"
-          onClick={deleteNow}
-          disabled={deleting}
-          className="font-medium text-red-700 hover:underline disabled:opacity-60 dark:text-red-400"
-        >
-          {deleting ? "Deleting…" : "Delete now"}
-        </button>
+        {!resume.sample && (
+          <>
+            <span className="text-zinc-500">
+              Deleted automatically {formatTimeUntil(resume.expires_at)}.
+            </span>
+            <button
+              type="button"
+              onClick={deleteNow}
+              disabled={deleting}
+              className="font-medium text-red-700 hover:underline disabled:opacity-60 dark:text-red-400"
+            >
+              {deleting ? "Deleting…" : "Delete now"}
+            </button>
+          </>
+        )}
         <Link href="/" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
           Upload another resume
         </Link>

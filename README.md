@@ -4,7 +4,11 @@
 
 Upload a resume and get ranked remote jobs, each with a fit score, the reason it matched and the skills you're missing, plus an ATS score against any job description you paste.
 
-Next.js + TypeScript frontend, FastAPI backend, Postgres + pgvector, and any OpenAI-compatible LLM: OpenAI, local Ollama, or Ollama cloud.
+Next.js + TypeScript frontend, FastAPI backend, Postgres + pgvector, and any OpenAI-compatible LLM. It runs on Groq's free tier, with a local model or rules as fallbacks, and the whole stack is hosted for free.
+
+**Live demo:** _link added after deployment (see [docs/DEPLOY.md](docs/DEPLOY.md))._ No resume handy? The home page has a "Try a sample" button with a fictional engineer's resume.
+
+![MatchLens demo: sample resume → parsed profile → ranked matches → ATS check → pipeline status](docs/demo.gif)
 
 ```mermaid
 flowchart LR
@@ -27,7 +31,7 @@ flowchart LR
 | 4 · Matching | ✅ done |
 | 5 · ATS scoring | ✅ done |
 | 6 · Evaluation + tests | 🟡 tools and tests done; labeling in progress |
-| 7 · Deployment + demo polish | |
+| 7 · Deployment + demo polish | 🟡 built and verified locally; deploy with [docs/DEPLOY.md](docs/DEPLOY.md) |
 
 ## Run it locally
 
@@ -204,6 +208,16 @@ Each line reports whether the JSON validated, whether the repair retry was neede
 - `/health` never touches the database. Render polls it, and a query on every poll would keep Neon's free compute awake around the clock (100 compute-hours a month is about 3 hours a day). `/health/db` is the deep check: database reachable, pgvector version, current migration.
 - One backend Dockerfile serves both compose (dev dependencies, bind mount, `--reload`) and Render (`$PORT`, non-root user).
 
+**Phase 7: deployment and demo polish**
+
+- **Free hosting end to end:** Vercel (web), Render (API, Docker, `render.yaml` Blueprint), Neon (Postgres + pgvector), GitHub Actions (daily import) and Groq's free tier. Step by step: [docs/DEPLOY.md](docs/DEPLOY.md).
+- **It fits Render's 512 MB.** The production image, run with a hard 512 MB limit through upload → embed → match → ATS, peaked at about 300 MB (90 MB after boot).
+- **Per-IP rate limits** on the endpoints that call the LLM (uploads 10/hour, matches 40, ATS 30). Groq's free tier blocks rather than bills, so this is about fairness: one visitor can't use up the day's 1,000 requests. Over the limit, the API answers 429 with `Retry-After` and a readable message.
+- **The demo's sample resume is shared:** parsed once and reused until it expires, with its matches cached, so most demo visits make no LLM calls.
+- **Cold starts are explained, not hidden.** Render's free tier sleeps after 15 idle minutes. If `/health` takes over 2.5 s, the home page shows "Waking up the server…" (tested by pausing the API container), and request timeouts allow about a minute for waking.
+- **Migrations run at boot** (`start.sh`), because Render's free plan has no pre-deploy step and there's only one instance. CORS takes exact origins plus an optional regex for Vercel preview URLs. The labeling endpoints aren't mounted in production (404, tested), and `.dockerignore` keeps `eval/private/` out of images.
+- **`/status` shows the pipeline:** active jobs per source, jobs added in the last 24 hours, and recent import runs.
+
 **Phase 6: evaluation and tests**
 
 - **Pooled relevance judgments,** the standard way to compare rankers: each system's top 10 is merged into one pool per resume, every pooled job is judged once, and each system's precision@10 comes from the same judgments. The rankings and job details are frozen into `pool.json`, so results don't drift as jobs open and close.
@@ -292,4 +306,6 @@ backend/
 frontend/           Next.js 16 app (app/, components/, lib/), __tests__/ (Jest), e2e/ (Playwright)
 .github/workflows/  ci.yml, ingest.yml (daily cron)
 docker-compose.yml  db, backend, frontend, optional ollama (--profile ollama)
+render.yaml         Render Blueprint for the API (free plan)
+docs/               DEPLOY.md (free deployment, step by step), demo.gif
 ```

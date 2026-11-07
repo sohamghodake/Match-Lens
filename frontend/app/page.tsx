@@ -1,3 +1,5 @@
+import { SampleResumeButton } from "@/components/SampleResumeButton";
+import { ServerWake } from "@/components/ServerWake";
 import { UploadDropzone } from "@/components/UploadDropzone";
 
 export default function Home() {
@@ -10,7 +12,9 @@ export default function Home() {
           matched, the skills you&apos;re missing, and an ATS score against any job description.
         </p>
       </header>
+      <ServerWake />
       <UploadDropzone />
+      <SampleResumeButton />
     </main>
   );
 }
